@@ -1,12 +1,14 @@
 #include <SKSE.h>
 #include <SKSE/PluginAPI.h>
 #include <SKSE/DebugLog.h>
-
-
+#include "Wrapper.h"
+#include "Console.h"
+#include "Hook_Game.h"
 
 //========================================================
 // skse plugin
 //========================================================
+
 
 class SkyrimSoulsPlugin : public SKSEPlugin
 {
@@ -17,13 +19,13 @@ public:
 
 	virtual bool InitInstance() override
 	{
-		if (!Requires(kSKSEVersion_1_7_1, SKSETaskInterface::Version_2))
+		if (!Requires(kSKSEVersion_1_7_1, SKSEMessagingInterface::Version_2))
 		{
 			gLog << "ERROR: your skse version is too old." << std::endl;
 			return false;
 		}
 
-		SetName("SKyrimSouls");
+		SetName(GetDllName());
 		SetVersion(1);
 
 		return true;
@@ -33,6 +35,9 @@ public:
 	{
 		SKSEPlugin::OnLoad();
 
+		const SKSEMessagingInterface *message = GetInterface(SKSEMessagingInterface::Version_2);
+		message->RegisterListener("SKSE", OnInit);
+
 		_MESSAGE("");
 
 		return true;
@@ -40,14 +45,9 @@ public:
 
 	virtual void OnModLoaded() override
 	{
-		Settings::Load();
-
-		if (LootMenu::Install())
-		{
-			Hooks::Install();
-			if (Settings::bUseConsole)
-				ConsoleCommand::Register();
-		}
+		settings.Load();
+		ConsoleCommand::Register();
+		Hook_Game_Commit();
 	}
 } thePlugin;
 
