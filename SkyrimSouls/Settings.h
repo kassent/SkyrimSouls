@@ -31,13 +31,13 @@ struct Settings
 		m_menuConfig["GiftMenu"] = 1;
 		m_menuConfig["Journal Menu"] = 1;
 		m_menuConfig["CustomMenu"] = 1;
-		m_delayCount = 21;
-		m_disableTime = 1400;
+		m_waitTime = 30;
+		m_disableTime = 30;
 		m_delayTime = 50;
 	}
 
 	std::map<std::string, int>		m_menuConfig;
-	int								m_delayCount;
+	int								m_waitTime;
 	int								m_delayTime;
 	int								m_disableTime;
 

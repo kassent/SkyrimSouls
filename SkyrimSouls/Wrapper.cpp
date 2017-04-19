@@ -110,6 +110,7 @@ void OnInit(SKSEMessagingInterface::Message* msg)
 		Wrapper<giftMenu>::GetSingleton()->RegisterMenu();
 		Wrapper<customMenu>::GetSingleton()->RegisterMenu();
 		Wrapper<journalMenu>::GetSingleton()->RegisterMenu();
+		//Wrapper<bookMenu>::GetSingleton()->RegisterMenu();
 
 		MenuManager* mm = MenuManager::GetSingleton();
 		if (mm)

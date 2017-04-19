@@ -69,9 +69,9 @@ bool Settings::Set(const char *name, int val)
 	{
 		m_menuConfig["CustomMenu"] = val;
 	}
-	else if (_stricmp(name, "DelayCount") == 0)
+	else if (_stricmp(name, "WaitTime") == 0)
 	{
-		m_delayCount = val;
+		m_waitTime = val;
 	}
 	else if (_stricmp(name, "DisableTime") == 0)
 	{
