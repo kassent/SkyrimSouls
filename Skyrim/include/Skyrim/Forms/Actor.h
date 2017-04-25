@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../SKSE/include/SKSE/GameRTTI.h"
 #include "TESObjectREFR.h"
 #include "../FormComponents/ActorValueOwner.h"
 #include "../FormComponents/MagicTarget.h"
@@ -374,6 +375,53 @@ public:
 	///<summary>Checks to see if this actor has the given Perk.</summary>
 	DEFINE_MEMBER_FN_const(HasPerk, bool, 0x006AA190, BGSPerk * perk);
 
+	Actor* GetDialogueTarget()
+	{
+		RefHandle handle = this->dialogueTargetRefHandle;
+
+		TESObjectREFR* target = nullptr;
+
+		LookupREFRByHandle(handle, target);
+
+		if (target != nullptr)
+		{
+			Actor* targetActor = DYNAMIC_CAST<Actor*>(target);
+
+			if (targetActor != nullptr)
+			{
+				return targetActor;
+			}
+		}
+		return nullptr;
+	}
+
+	void DisableActorMove(bool state)
+	{
+		void(__fastcall* Fn_6D31E0)(void*, void*, bool) = (void(__fastcall*)(void*, void*, bool))0x006D3E10;
+		Fn_6D31E0(this, nullptr, state);
+		if (state)
+		{
+			void(__fastcall* Fn_6AD410)(void*, void*) = (void(__fastcall*)(void*, void*))0x006AD410;
+			Fn_6AD410(this, nullptr);
+		}
+	}
+
+	void KeepOffsetFromActor(Actor* target, float afOffsetX, float afOffsetY, float afOffsetZ, float afOffsetAngleX = 0.0, float afOffsetAngleY = 0.0, float afOffsetAngleZ = 0.0, float afCatchUpRadius = 20.0, float afFollowRadius = 5.0)
+	{
+		typedef void(__cdecl*Fn)(void*, void*, Actor*, Actor*, float, float, float, float, float, float, float, float);
+		Fn fn = (Fn)0x008DA850;
+		fn(nullptr, nullptr, this, target, afOffsetX, afOffsetY, afOffsetZ, afOffsetAngleX, afOffsetAngleY, afOffsetAngleZ, afCatchUpRadius, afFollowRadius);
+	}
+
+	void ClearOffsetFormActor()
+	{
+		void(__fastcall*fn)(void*, void*) = (void(__fastcall*)(void*, void*))0x006B45D0;
+		fn(this, nullptr);
+	}
+
+
+	//int __cdecl sub_8DA850(int, int, int, int, int, int, int, float, float, float, int, int)
+
 	///<summary>Is this actor being ridden?</summary>
 	bool IsBeingRidden() const;		// 008DCAF0
 
@@ -518,7 +566,7 @@ public:
 	UInt32						unk080;								// 080
 	UInt32						unk084;								// 084
 	ActorProcessManager			* processManager;					// 088
-	UInt32						unk08C;								// 08C | 
+	RefHandle					dialogueTargetRefHandle;			// 08C | 
 	RefHandle					combatTargetRefHandle;				// 090 | (himika)
 	UInt32						unk094[(0x0C8 - 0x094) >> 2];		// 094 | 
 	BGSLocation					* editorLocation;					// 0C8 |

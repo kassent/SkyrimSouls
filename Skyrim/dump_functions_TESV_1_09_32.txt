@@ -343,7 +343,7 @@ class BSScript::NativeFunction1<struct BSScript::StaticFunctionTag,bool,class TE
 0000: |   class BSScript::NF_util::NativeFunctionBase
 0000: |   |   class BSScript::IFunction
 0004: |   |   |   struct BSIntrusiveRefCounted
-
+autosave
 <Game> Function PlayBink(String param1, Bool param2, Bool param3, Bool param4, Bool param5) global native (3B088700) callback=008F0A70
 class BSScript::NativeFunction5<struct BSScript::StaticFunctionTag,void,class BSFixedString const &,bool,bool,bool,bool> +0000 (_vtbl=010F1824)
 0000: class BSScript::NativeFunction5<struct BSScript::StaticFunctionTag,void,class BSFixedString const &,bool,bool,bool,bool>

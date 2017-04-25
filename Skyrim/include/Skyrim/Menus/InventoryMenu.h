@@ -74,7 +74,7 @@ public:
 		GFxValue						unk18;				// 18
 		BSTArray<StandardItemData *>	items;				// 28
 		bool							selected;			// 34
-
+															// 52 bool isUpdating? 
 		DEFINE_MEMBER_FN(GetSelectedItemData, StandardItemData*, 0x00841D90);
 		DEFINE_MEMBER_FN(Update, void, 0x00841E70, TESObjectREFR* owner);
 	};

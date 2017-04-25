@@ -62,7 +62,11 @@ public:
 
 	DEFINE_MEMBER_FN(UpdateThirdPerson, void, 0x0083C7E0, bool weaponDrawn);
 	DEFINE_MEMBER_FN(ToggleFlyCam, void, 0x0083E4C0, bool);
+	DEFINE_MEMBER_FN(ResetCamera, void, 0x0083BDF0);
+	DEFINE_MEMBER_FN(OpenTweenMenu, void, 0x0083D830);
+	DEFINE_MEMBER_FN(CloseTweenMenu, void, 0x0083E570);
 
+	//83D830
 	// @members
 	RefHandle		unk2C;										// 2C <-- [01310630] g_invalidRefHandle
 	UInt32			unk34[(0x6C - 0x30) >> 2];					// 28

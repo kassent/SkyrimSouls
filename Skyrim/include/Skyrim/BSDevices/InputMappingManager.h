@@ -97,6 +97,9 @@ public:
 	UInt8				unk99;							// 99 - init'd 0
 	UInt8				unk9A;							// 9A - init'd 0
 
+	DEFINE_MEMBER_FN(DisableControl, void, 0x00A674D0, UInt32 context);  // 1 3 4 9 //A67260
+	DEFINE_MEMBER_FN(EnableControl, void, 0x00A67260, UInt32 context);
+
 private:
 	friend struct BSTSingletonSDMBase<BSTSDMTraits<InputMappingManager>>;
 	DEFINE_MEMBER_FN(ctor, InputMappingManager*, 0x00A68770);

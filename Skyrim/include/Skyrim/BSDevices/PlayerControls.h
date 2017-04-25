@@ -107,11 +107,17 @@ public:
 	TogglePOVHandler				* togglePOVHandler;		// 158
 	UInt8							unk15C;					// 15C
 
+	void EnableControl()
+	{
+		*((UInt8*)this + 0x3E) = 1;
+	}
+
+	DEFINE_MEMBER_FN(DisableControl, void, 0x00771970);
+	DEFINE_MEMBER_FN(IsGrabbing, bool, 0x00771200);
+	DEFINE_MEMBER_FN(HandleEvent, void, 0x00771A60, InputEvent *evn);
+
 private:
 	friend struct BSTSingletonSDMBase<BSTSDMTraits<PlayerControls>>;
 	DEFINE_MEMBER_FN(ctor, PlayerControls *, 0x00774F20);
 	DEFINE_MEMBER_FN(dtor, void, 0x007750C0);
-
-	DEFINE_MEMBER_FN(IsGrabbing, bool, 0x00771200);
-	DEFINE_MEMBER_FN(HandleEvent, void, 0x00771A60, InputEvent *evn);
 };
