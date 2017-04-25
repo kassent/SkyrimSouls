@@ -9,7 +9,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Skyrim", "Skyrim\Skyrim.vcx
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkyrimSouls", "..\SkyrimSouls\SkyrimSouls.vcxproj", "{322E7D1F-19C9-4ECE-A6D6-262DA2EE3890}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkyrimSouls", "SkyrimSouls\SkyrimSouls.vcxproj", "{322E7D1F-19C9-4ECE-A6D6-262DA2EE3890}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
