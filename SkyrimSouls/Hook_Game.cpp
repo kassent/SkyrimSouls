@@ -15,6 +15,7 @@
 #include <Skyrim/NetImmerse/NiAVObject.h>
 #include <Skyrim/Forms/Character/Components/ActorProcessManager.h>
 #include <Skyrim/Animation/IAnimationGraphManagerHolder.h>
+#include <Skyrim/Menus/Inventory3DManager.h>
 
 #include <future>
 #include <vector>
@@ -692,17 +693,13 @@ public:
 	{
 		MenuManager* manager = MenuManager::GetSingleton();
 		UIStringHolder* holder = UIStringHolder::GetSingleton();
-
 		if (holder && manager && manager->IsMenuOpen(holder->lockpickingMenu))
 		{
 			IMenu* lockpickingMenu = manager->GetMenu(holder->lockpickingMenu);
-
 			if (settings.m_menuConfig[holder->lockpickingMenu.c_str()] && (lockpickingMenu->flags & IMenu::kType_PauseGame) == IMenu::kType_PauseGame)
 			{
 				manager->numPauseGame -= 1;
-
 				lockpickingMenu->flags &= ~IMenu::kType_PauseGame;
-
 				if (!manager->numPauseGame)
 				{
 					static MenuModeChangeEvent event;
@@ -855,32 +852,93 @@ public:
 
 				GMemory::Free(this);
 			}
+			return;
 		}
-		else
-			this->Release();
+		this->Release();
 	}
 
 	UInt32 ProcessMessage_Hook(UIMessage* msg)
 	{
 		UInt32 result = (this->*fnProcessMessage)(msg);
-		if (msg->type == UIMessage::kMessage_Message)
+
+		if (msg->type == UIMessage::kMessage_Scaleform)
 		{
-			InputStringHolder* input = InputStringHolder::GetSingleton();
-			BSUIMessageData* msgData = static_cast<BSUIMessageData*>(msg->data);
-			_MESSAGE("msgData: %s", msgData->unk0C.c_str());
+			BSUIScaleformData* scaleformData = static_cast<BSUIScaleformData*>(msg->data);
+			GFxEvent* event = scaleformData->event;
+			if (event->type == GFxEvent::KeyDown)
+			{
+				GFxKeyEvent* key = static_cast<GFxKeyEvent*>(event);
+				if (key->keyCode == GFxKey::Code::I)
+				{
+					//Inventory3DManager* invManager = Inventory3DManager::GetSingleton();
+					//invManager->Unk5();
+					//invManager->Unk3();
+					GFxValue result;
+					GFxMovieView* view = this->GetMovieView();
+					if (view != nullptr)
+					{
+						view->Invoke("_root.Menu_mc.onExitMenuRectClick", &result, nullptr, 0);
+					}
+				}
+			}
 		}
 		return result;
 	}
 
 	static void InitHook()
 	{
-		//fnProcessMessage = SafeWrite32(0x010E5B90 + 0x04 * 4, &ProcessMessage_Hook);
+		fnProcessMessage = SafeWrite32(0x010E5B90 + 0x04 * 4, &ProcessMessage_Hook);
 		WriteRelCall(0x00A5D686, &Release_Hook);
 	}
 };
 
 InventoryMenuEx::FnProcessMessage	InventoryMenuEx::fnProcessMessage = nullptr;
 
+
+
+class MagicMenuEx : public IMenu
+{
+public:
+	typedef UInt32(MagicMenuEx::*FnProcessMessage)(UIMessage*);
+
+	static FnProcessMessage fnProcessMessage;
+
+	UInt32 ProcessMessage_Hook(UIMessage* msg)
+	{
+		UInt32 result = (this->*fnProcessMessage)(msg);
+
+		if (msg->type == UIMessage::kMessage_Scaleform)
+		{
+			BSUIScaleformData* scaleformData = static_cast<BSUIScaleformData*>(msg->data);
+			GFxEvent* event = scaleformData->event;
+			if (event->type == GFxEvent::KeyDown)
+			{
+				GFxKeyEvent* key = static_cast<GFxKeyEvent*>(event);
+				if (key->keyCode == GFxKey::Code::P)
+				{
+					GFxValue result;
+					GFxMovieView* view = this->GetMovieView();
+					if (view != nullptr)
+					{
+						view->Invoke("_root.Menu_mc.onExitMenuRectClick", &result, nullptr, 0);
+					}
+				}
+			}
+		}
+		return result;
+	}
+
+	static void InitHook()
+	{
+		fnProcessMessage = SafeWrite32(0x010E6594 + 0x04 * 4, &ProcessMessage_Hook);
+
+		SafeWrite16(0x00873884, 0x9090);
+		SafeWrite32(0x00873886, 0x90909090);
+		SafeWrite8(0x0087388A, 0x90);
+	}
+};
+
+MagicMenuEx::FnProcessMessage	MagicMenuEx::fnProcessMessage = nullptr;
 
 
 
@@ -984,6 +1042,7 @@ void Hook_Game_Commit()
 	LockpickingMenu::InitHook();
 	InventoryMenuEx::InitHook();
 	DialogueMenuEx::InitHook();
+	MagicMenuEx::InitHook();
 
 	//fix inventory
 	SafeWrite16(0x0086BF6F, 0x9090);

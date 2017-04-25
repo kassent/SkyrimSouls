@@ -86,6 +86,8 @@ public:
 		UInt32	unk08;	// ctor 0x00A49B40 { this->unk00 = 0; }
 	};
 
+	//RefershMenu 00547A00
+
 	// @members
 	//void			** _vtbl;			// 00 - 010E5B90
 	//UInt32		pad1C;				// 1C - pad for alignment

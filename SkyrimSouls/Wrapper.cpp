@@ -34,6 +34,6 @@ void RegisterMenu()
 	Wrapper<giftMenu>::GetSingleton()->RegisterMenu();
 	Wrapper<customMenu>::GetSingleton()->RegisterMenu();
 	Wrapper<journalMenu>::GetSingleton()->RegisterMenu();
-	Wrapper<sleepWaitMenu>::GetSingleton()->RegisterMenu();
+	//Wrapper<sleepWaitMenu>::GetSingleton()->RegisterMenu();
 }
 

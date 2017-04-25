@@ -60,12 +60,13 @@ public:
 	DEFINE_MEMBER_FN(UpdateMagic3D, void, 0x00867930, TESForm * form, UInt32 unk1);
 	DEFINE_MEMBER_FN(Clear3D, void, 0x008668C0);
 	DEFINE_MEMBER_FN(Render, UInt32, 0x00867730);
-
+	DEFINE_MEMBER_FN(Unk5, bool, 0x008418D0);
+	DEFINE_MEMBER_FN(Unk3, bool, 0x008664C0);
 	//DEFINE_MEMBER_FN(Unk1, void, 0x008667E0, UInt32 unk1);
 	//DEFINE_MEMBER_FN(Unk2, void, 0x00867110);
-	//DEFINE_MEMBER_FN(Unk3, bool, 0x008664C0);
+
 	//DEFINE_MEMBER_FN(Unk4, double, 0x008663E0);
-	//DEFINE_MEMBER_FN(Unk5, bool, 0x008418D0);
+
 	//DEFINE_MEMBER_FN(Unk6, int, 0x00867730);
 };
 STATIC_ASSERT(offsetof(Inventory3DManager, unk10) == 0x10);

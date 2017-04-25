@@ -165,15 +165,15 @@
     <ClInclude Include="Tools.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\dll\SKSE\SKSE.vcxproj">
-      <Project>{e2bb26ec-2013-42cd-bca5-c9c566ba0379}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\dll\Skyrim\Skyrim.vcxproj">
-      <Project>{ad95f75e-fd79-4f2f-bc36-828d592a790a}</Project>
-    </ProjectReference>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Resource.rc" />
+    <ProjectReference Include="..\SKSE\SKSE.vcxproj">
+      <Project>{e2bb26ec-2013-42cd-bca5-c9c566ba0379}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Skyrim\Skyrim.vcxproj">
+      <Project>{ad95f75e-fd79-4f2f-bc36-828d592a790a}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
