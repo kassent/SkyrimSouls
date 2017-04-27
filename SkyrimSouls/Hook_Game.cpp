@@ -4,6 +4,7 @@
 #include <SKSE/GameMenus.h>
 #include <SKSE/SafeWrite.h>
 #include <SKSE/GameRTTI.h>
+#include <SKSE/PluginAPI.h>
 #include <Skyrim/BSDevices/InputDevice.h>
 #include <Skyrim/BSDevices/InputManager.h>
 #include <Skyrim/BSDevices/KeyCode.h>
@@ -502,7 +503,6 @@ public:
 	DEFINE_MEMBER_FN(InitBookMenu, void, 0x008451C0);
 	//DEFINE_MEMBER_FN(CreateBookContent, void, 0x00845D60);
 	DEFINE_MEMBER_FN(CreateBookContent, void, 0x00845F70);
-	//void __cdecl sub_C746A0(int a1, int a2, int a3) sub_C746A0(*(_DWORD *)(v2 + 0x3C), 1, 0);
 
 };
 static_assert(sizeof(BookMenu) == 0x60, "bookMenu");
@@ -767,15 +767,14 @@ public:
 					static MenuModeChangeEvent event;
 					event.unk0 = 0;
 					event.menuMode = 0;
-
 					mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
-					typedef void(__fastcall * Fn)(void*, void*); //MenuModeChangeEvent
+
+					typedef void(__fastcall * Fn)(void*, void*);
 					Fn ReleaseObject = (Fn)0xA511B0;
 					ReleaseObject(&event, nullptr);
 				}
 			}
 		}
-
 		return result;
 	}
 
@@ -826,6 +825,11 @@ void UICallBack_DropItem(FxDelegateArgs* pargs)
 					sub_755420(*(void**)0x12E32E8, nullptr);
 
 					inventory->inventoryData->Update(g_thePlayer);
+
+					if (inventory->flags & IMenu::kType_PauseGame)
+					{
+						g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+					}
 				}
 			}
 		}
@@ -847,6 +851,39 @@ void UICallBack_CloseTweenMenu(FxDelegateArgs* pargs)
 }
 
 
+class PlayerInfoUpdater : public UIDelegate
+{
+public:
+	TES_FORMHEAP_REDEFINE_NEW();
+
+	void Run() override
+	{
+		UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+		MenuManager* mm = MenuManager::GetSingleton();
+		if (mm->IsMenuOpen(stringHolder->inventoryMenu))
+		{
+			InventoryMenu* inventory = static_cast<InventoryMenu*>(mm->GetMenu(stringHolder->inventoryMenu));
+			inventory->UpdatePlayerInfo();
+		}
+	}
+
+	void Dispose() override
+	{
+		delete this;
+	}
+
+	static void Register()
+	{
+		const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+		const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+		if (task)
+		{
+			PlayerInfoUpdater *delg = new PlayerInfoUpdater();
+			task->AddUITask(delg);
+		}
+	}
+};
+
 void UICallBack_SelectItem(FxDelegateArgs* pargs)
 {
 	InventoryMenu* inventory = reinterpret_cast<InventoryMenu*>(pargs->pThisMenu);
@@ -855,29 +892,30 @@ void UICallBack_SelectItem(FxDelegateArgs* pargs)
 	TESForm* form = nullptr;
 	BaseExtraList* extraList = nullptr;
 
-	void(__fastcall* EquipSlot)(InventoryMenu*, void*, BGSEquipSlot*) = (void(__fastcall*)(InventoryMenu*, void*, BGSEquipSlot*))0x00869DB0;
+	void(__fastcall* EquipItem)(InventoryMenu*, void*, BGSEquipSlot*) = (void(__fastcall*)(InventoryMenu*, void*, BGSEquipSlot*))0x00869DB0;
 	if (inventory != nullptr && inventory->bPCControlsReady && pargs->numArgs && args->Type == GFxValue::ValueType::VT_Number)
 	{
 		if (args->GetNumber() == 0.0f)
 		{
 			BGSEquipSlot* rightHandSlot = GetRightHandSlot();
-			EquipSlot(inventory, nullptr, rightHandSlot);
+			EquipItem(inventory, nullptr, rightHandSlot);
 		}
 		else if (args->GetNumber() == 1.0f)
 		{
 			BGSEquipSlot* leftHandSlot = GetLeftHandSlot();
-			EquipSlot(inventory, nullptr, leftHandSlot);
+			EquipItem(inventory, nullptr, leftHandSlot);
 		}
 	}
 	else
 	{
-		EquipSlot(inventory, nullptr, nullptr);
+		EquipItem(inventory, nullptr, nullptr);
 	}
-
-	inventory->inventoryData->Update(g_thePlayer);
-	auto fn = [=](UInt32 time)->bool {std::this_thread::sleep_for(std::chrono::milliseconds(time)); inventory->UpdatePlayerInfo(); return true; };
-	really_async(fn, 70);
-	really_async(fn, 120);
+	if (inventory->flags & IMenu::kType_PauseGame)
+	{
+		g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+	}
+	auto fn = [=](UInt32 time)->bool {std::this_thread::sleep_for(std::chrono::milliseconds(time)); PlayerInfoUpdater::Register(); return true; };
+	really_async(fn, 100);
 }
 
 
@@ -904,9 +942,9 @@ void Hook_Game_Commit()
 	//SleepWaitMenu::InitHook();
 
 	//Fix SelectItem.
-	SafeWrite32(0x00869F21, 0x90909090);
-	SafeWrite32(0x00869F25, 0x90909090);
-	SafeWrite8(0x00869F29, 0x90);
+	//SafeWrite32(0x00869F21, 0x90909090);
+	//SafeWrite32(0x00869F25, 0x90909090);
+	//SafeWrite8(0x00869F29, 0x90);
 
 	//Fix Inventory.
 	SafeWrite16(0x0086BF6F, 0x9090);
