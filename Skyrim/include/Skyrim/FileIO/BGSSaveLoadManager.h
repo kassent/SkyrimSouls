@@ -169,6 +169,7 @@ public:
 	DEFINE_MEMBER_FN(Save, bool, 0x006814D0, const char * name, int unk1, UInt32 unk2);
 	DEFINE_MEMBER_FN(Load, bool, 0x006821C0, const char * name, int unk1, UInt32 unk2, UInt32 unk3);
 	DEFINE_MEMBER_FN(ProcessEvents, void, 0x00682400);
+	DEFINE_MEMBER_FN(CanSaveLoadGame, bool, 0x00681180, bool);
 
 	// @members
 	BSSimpleList<const char**>	* saveList;		// 00
@@ -191,8 +192,10 @@ public:
 	UInt8				unk34;					// 34 - init'd to 0x01
 	UInt8				unk35;					// 35
 	UInt8				pad36[2];				// 36
-	UInt32				unk38;					// 38
+
+	UInt32				unk38;					// 38 跟系统菜单有关 系统菜单构造的时候设为0
 	UInt32				unk3C;					// 3C
+
 	UInt32				unk40;					// 40
 	UInt32				unk44;					// 44
 	UInt32				unk48;					// 48

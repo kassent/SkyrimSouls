@@ -17,6 +17,7 @@
 #include <Skyrim/Forms/Character/Components/ActorProcessManager.h>
 #include <Skyrim/Animation/IAnimationGraphManagerHolder.h>
 #include <Skyrim/Menus/Inventory3DManager.h>
+#include <Skyrim/FileIO/BGSSaveLoadManager.h>
 
 #include <vector>
 #include <string>
@@ -919,6 +920,34 @@ void UICallBack_SelectItem(FxDelegateArgs* pargs)
 }
 
 
+void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
+{
+	GFxValue* args = pargs->args; //一个参数数组 GFxVaue[5];
+
+	bool isBool = true;
+	if (pargs->numArgs <= 5 || args[5].Type != GFxValue::ValueType::VT_Boolean || !args[5].GetBool())
+	{
+		isBool = false;
+	}
+	for (UInt32 i = 0; i < 5 && args[i].GetType() != GFxValue::ValueType::VT_Undefined; ++i)
+	{
+		GFxValue value(args[i]);
+		BGSSaveLoadManager* saveLoadManager = BGSSaveLoadManager::GetSingleton();
+		GFxValue arg(!saveLoadManager->CanSaveLoadGame(!isBool));
+		args[i].pObjectInterface->SetMember(args[i].Value.pData, "disabled", arg, value.GetType() == GFxValue::ValueType::VT_DisplayObject);
+		//_MESSAGE("pGFxValue: %p    pObjectInterface: %p    pData:%p", &args[i], args[i].pObjectInterface, args[i].Value.pData);
+		if ((arg.GetType() >> 6) & 1)
+		{
+			arg.pObjectInterface->ObjectRelease(&arg, arg.Value.pData);
+		}
+		if ((value.GetType() >> 6) & 1)
+		{
+			value.pObjectInterface->ObjectRelease(&value, value.Value.pData);
+		}
+	}
+}
+
+
 void RegisterEventHandler()
 {
 	MenuManager* mm = MenuManager::GetSingleton();
@@ -961,7 +990,8 @@ void Hook_Game_Commit()
 	SafeWrite32(0x0086B437, (UInt32)UICallBack_DropItem);
 	//equip item in inventory
 	SafeWrite32(0x0086B3F4, (UInt32)UICallBack_SelectItem);
-
+	//008A7F72
+	SafeWrite32(0x008A7F73, (UInt32)UICallBack_SetSaveDisabled);
 	//Fix camera in tweenmenu.
 	SafeWrite8(0x008951C4, 0x90);
 	SafeWrite32(0x008951C5, 0x90909090);

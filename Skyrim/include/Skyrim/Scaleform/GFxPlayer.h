@@ -174,7 +174,6 @@ public:
 		void    ClearFlags(UInt32 flags)	{ VarsSet &= ~flags; }
 	};
 
-protected:
 	enum ValueTypeControl
 	{
 		VTC_ConvertBit = 0x80,
