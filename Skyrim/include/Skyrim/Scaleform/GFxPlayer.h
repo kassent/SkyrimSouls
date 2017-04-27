@@ -513,7 +513,7 @@ protected:
 		const wchar_t*	pStringW;
 		void*			pData;
 	};
-
+public:
 	ObjectInterface*	pObjectInterface;	// 00
 	ValueType			Type;				// 04
 	ValueUnion			Value;				// 08

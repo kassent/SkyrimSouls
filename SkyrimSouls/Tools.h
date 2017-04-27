@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <future>
 
 #define START_ASM(id, startAddr, endAddr, isReturn)				\
 		__asm{													\
@@ -46,4 +47,17 @@ void __stdcall WriteHook(int sourceBegin, int sourceEnd, int targetBegin, int ta
 		}
 
 	}
+}
+
+
+template <typename F, typename... Args>
+auto really_async(F&& f, Args&&... args)-> std::future<typename std::result_of<F(Args...)>::type>
+{
+	using returnValue = typename std::result_of<F(Args...)>::type;
+	auto fn = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
+	std::packaged_task<returnValue()> task(std::move(fn));
+	auto future = task.get_future();
+	std::thread thread(std::move(task));
+	thread.detach();
+	return future;
 }

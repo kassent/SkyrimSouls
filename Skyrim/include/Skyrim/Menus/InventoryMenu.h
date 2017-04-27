@@ -101,6 +101,7 @@ public:
 	bool			bPCControlsReady;	// 50 - init'd 0 root.GetMember("bPCControlsReady", tmpValue) (00869B15)
 	bool			unk51;				// 51 - init'd 0
 
+	DEFINE_MEMBER_FN(UpdatePlayerInfo, void, 0x00848EC0);
 private:
 	DEFINE_MEMBER_FN(ctor, InventoryMenu*, 0x00869A70);
 };

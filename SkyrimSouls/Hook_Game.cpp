@@ -17,28 +17,12 @@
 #include <Skyrim/Animation/IAnimationGraphManagerHolder.h>
 #include <Skyrim/Menus/Inventory3DManager.h>
 
-#include <future>
 #include <vector>
 #include <string>
 #include <string>
 #include <algorithm>
 
 #define STDFN __stdcall
-
-class EquipManager
-{
-public:
-	virtual ~EquipManager();
-
-	static EquipManager *   GetSingleton(void)
-	{
-		return *((EquipManager **)0x012E5FAC);
-	}
-
-	DEFINE_MEMBER_FN(EquipItem, void, 0x006EF3E0, Actor * actor, TESForm * item, BaseExtraList * extraData, SInt32 count, BGSEquipSlot * equipSlot, int withEquipSound, int preventUnequip, int showMsg, int unk);
-	DEFINE_MEMBER_FN(UnequipItem, bool, 0x006EE560, Actor * actor, TESForm * item, BaseExtraList * extraData, SInt32 count, BGSEquipSlot * equipSlot, int unkFlag1, int preventEquip, int unkFlag2, int unkFlag3, int unk);
-};
-
 
 
 class MenuOpenCloseEventHandler : public BSTEventSink<MenuOpenCloseEvent>
@@ -113,12 +97,8 @@ public:
 						else
 							console->flags |= IMenu::kType_PauseGame;
 					}
-					//IsGamepadEnabled
 				}
 			}
-#ifdef DEBUG_LOG
-			_MESSAGE("menu: %s, isOpening: %d, count: %d", evn->menuName.c_str(), evn->opening, unpausedCount);
-#endif
 		}
 		return kEvent_Continue;
 	}
@@ -133,19 +113,6 @@ public:
 
 SInt32		MenuOpenCloseEventHandler::unpausedCount = 0;
 bool		MenuOpenCloseEventHandler::disableAutoSave = false;
-
-
-template <typename F, typename... Args>
-auto really_async(F&& f, Args&&... args)-> std::future<typename std::result_of<F(Args...)>::type>
-{
-	using returnValue = typename std::result_of<F(Args...)>::type;
-	auto fn = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
-	std::packaged_task<returnValue()> task(std::move(fn));
-	auto future = task.get_future();
-	std::thread thread(std::move(task));
-	thread.detach();
-	return future;
-}
 
 
 
@@ -204,133 +171,6 @@ bool STDFN Hook_AddUIMessage(const BSFixedString& strData, UInt32 msgID)
 	}
 	return true;
 }
-
-void STDFN AttempEquip(PlayerCharacter* actor, InventoryEntryData* objDesc, BGSEquipSlot* slot, bool unk = 1)
-{
-	//_MESSAGE("> Attemp Equip...");
-	TESForm * form = nullptr;
-	UInt32 count = NULL;
-	BGSEquipSlot *leftEquipSlot = nullptr, *rightEquipSlot = nullptr, *targetEquipSlot = nullptr;
-	BaseExtraList *leftExtraList = nullptr, *rightExtraList = nullptr;
-	bool condition = false;
-
-	form = objDesc->baseForm;
-	leftExtraList = objDesc->GetBaseExtraList(1);//thiscall InventoryEntryData::GetBaseExtraList 
-	rightExtraList = objDesc->GetBaseExtraList(0);
-	if (form->formType == FormType::Ammo) 
-		count = objDesc->GetCount(); //DEFINE_MEMBER_FN_const(GetCount, SInt32, 0x005E8920);
-	else
-		count = 1;
-	if (actor && (UInt32)actor == *(UInt32*)0x1310588 && objDesc->Unk001(61))
-	{
-		void(__cdecl* sub_8997A0)(void*, char*, bool) = (void(__cdecl*)(void*, char*, bool))0x8997A0;
-		if (rightExtraList || leftExtraList)
-			sub_8997A0(*(void**)0x1B19584, (char*)0x010D0A38, true);  //cdecl
-		else
-			sub_8997A0(*(void**)0x1B19560, (char*)0x010D0A38, true);  //cdecl
-		return;
-	}
-
-	EquipManager* manager = EquipManager::GetSingleton();
-
-	if (rightExtraList && leftExtraList)
-	{
-		//_MESSAGE("> BothHands...");
-		if (unk)
-		{
-			if (slot)
-			{
-				//manager->UnequipItem(actor, form, rightExtraList, count, slot, 0, 0, 1, 0, 0);
-				if (slot == GetRightHandSlot())
-					manager->UnequipItem(actor, form, rightExtraList, count, slot, 0, 0, 1, 0, 0);
-				else
-					manager->UnequipItem(actor, form, leftExtraList, count, slot, 0, 0, 1, 0, 0);
-			}
-			else
-			{
-				leftEquipSlot = GetLeftHandSlot();
-				manager->UnequipItem(actor, form, leftExtraList, count, leftEquipSlot, 0, 0, 1, 0, 0);
-				rightEquipSlot = GetRightHandSlot();
-				manager->UnequipItem(actor, form, rightExtraList, count, rightEquipSlot, 0, 0, 1, 0, 0);
-			}
-		}
-		return;
-	}
-
-	if (leftExtraList) //左手已经装备，装备右手。
-	{
-		//_MESSAGE("> LeftHand...");
-		rightExtraList = leftExtraList;
-		BGSEquipSlot* leftEquipSlot = GetLeftHandSlot();
-		void* (__cdecl * sub_44AA10)(TESForm*) = (void* (__cdecl*)(TESForm*))0x44AA10;
-		void* unk0 = sub_44AA10(form);//cdecl
-		if (unk0)
-		{
-			typedef BGSEquipSlot* (__fastcall* Fn)(void*, void*);
-			Fn fn = (Fn)(*(UInt32*)(*(UInt32*)unk0 + 0x10));//????
-			targetEquipSlot = fn(unk0, nullptr);
-		}
-		else
-			targetEquipSlot = 0;
-		bool(__stdcall* sub_6EE190)(void*, void*, void*) = (bool(__stdcall*)(void*, void*, void*))0x6EE190;
-		condition = (slot && slot != leftEquipSlot && (targetEquipSlot == GetEitherHandSlot() || sub_6EE190(actor, form, targetEquipSlot)));
-
-		UInt32 itemCount = objDesc->GetCount();  //	DEFINE_MEMBER_FN_const(GetCount, SInt32, 0x005E8920);
-		if (itemCount > 1 && condition)
-		{
-			manager->EquipItem(actor, form, nullptr, count, slot, 0, 0, 1, 0);
-		}
-		else if (unk)
-		{
-			BaseExtraList * newEquipList = manager->UnequipItem(actor, form, leftExtraList, count, leftEquipSlot, 0, 0, 1, 0, 0) ? 0 : leftExtraList;
-			if (condition)
-				manager->EquipItem(actor, form, newEquipList, count, slot, 0, 0, 1, 0);
-		}
-		return;
-	}
-
-	if (rightExtraList) //右手已经装备，装备左手
-	{
-		//_MESSAGE("> RightHand...");
-		leftExtraList = rightExtraList;
-		rightEquipSlot = GetRightHandSlot();
-		void* (__cdecl * sub_44AA10)(TESForm*) = (void* (__cdecl*)(TESForm*))0x44AA10;
-		void* unk1 = sub_44AA10(form);//cdecl
-		if (unk1)
-		{
-			typedef BGSEquipSlot* (__fastcall* Fn)(void*, void*);
-			Fn fn = (Fn)(*(UInt32*)(*(UInt32*)unk1 + 0x10));
-			targetEquipSlot = fn(unk1, nullptr);
-		}
-		else
-			targetEquipSlot = 0;
-		bool(__stdcall* sub_6EE190)(void*, void*, void*) = (bool(__stdcall*)(void*, void*, void*))0x6EE190;
-		condition = (slot && slot != rightEquipSlot && (targetEquipSlot == GetEitherHandSlot() || sub_6EE190(actor, form, unk1)));
-
-		UInt32 itemCount = objDesc->GetCount();  //	DEFINE_MEMBER_FN_const(GetCount, SInt32, 0x005E8920);
-		if (itemCount > 1 && condition)
-		{
-			manager->EquipItem(actor, form, nullptr, count, slot, 0, 0, 1, 0);
-		}
-		else if (unk)
-		{
-			BaseExtraList * newEquipList = manager->UnequipItem(actor, form, rightExtraList, count, rightEquipSlot, 0, 0, 1, 0, 0) ? 0 : rightExtraList;
-			if (condition)
-				manager->EquipItem(actor, form, newEquipList, count, slot, 0, 0, 1, 0);
-		}
-		return;
-	}
-	//_MESSAGE("> NoHand...");
-	BSSimpleList<BaseExtraList *>* simpleList = objDesc->extraList;
-	BaseExtraList * equipList = nullptr;
-	if (simpleList)
-	{
-		if (*(BaseExtraList**)simpleList)
-			equipList = *(BaseExtraList**)simpleList;
-	}
-	manager->EquipItem(actor, form, equipList, count, slot, 0, 0, 1, 0);
-}
-
 
 
 class FavoritesHandler : public MenuEventHandler
@@ -665,14 +505,13 @@ public:
 	//void __cdecl sub_C746A0(int a1, int a2, int a3) sub_C746A0(*(_DWORD *)(v2 + 0x3C), 1, 0);
 
 };
-static_assert(sizeof(BookMenu) == 0x60, "BOOKMENU");
+static_assert(sizeof(BookMenu) == 0x60, "bookMenu");
 
 BookMenu::FnProcessMessage	BookMenu::fnProcessMessage = nullptr;
 BookMenu::FnReceiveEvent	BookMenu::fnReceiveEvent = nullptr;
 bool						BookMenu::enableMenuControl = false;
 bool						BookMenu::enableCloseMenu = false;
 bool						BookMenu::bSlowndownRefreshFreq = false;
-
 
 
 
@@ -691,8 +530,8 @@ public:
 
 	static void STDFN Hook_SetLockInfo()
 	{
-		MenuManager* manager = MenuManager::GetSingleton();
 		UIStringHolder* holder = UIStringHolder::GetSingleton();
+		MenuManager* manager = MenuManager::GetSingleton();
 		if (holder && manager && manager->IsMenuOpen(holder->lockpickingMenu))
 		{
 			IMenu* lockpickingMenu = manager->GetMenu(holder->lockpickingMenu);
@@ -706,9 +545,10 @@ public:
 					event.unk0 = 0;
 					event.menuMode = 0;
 					manager->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
+
 					typedef void(__fastcall * Fn)(void*, void*);
-					Fn fn = (Fn)0xA511B0;
-					fn(&event, nullptr);
+					Fn ReleaseObject = (Fn)0xA511B0;
+					ReleaseObject(&event, nullptr);
 				}
 			}
 		}
@@ -720,22 +560,18 @@ public:
 			static const UInt32 kHook_SetLockInfo_Call = 0x0086FE10;
 
 			START_ASM(Hook_SetLockInfo, 0x0087053D, 0x00870549, 1);
-
 				add esp, 0xC
 				lea ecx, [esp + 0x38]
 				call [kHook_SetLockInfo_Call]
 				pushad
 				call Hook_SetLockInfo
 				popad
-
 			END_ASM(Hook_SetLockInfo);
-
 		}
 	}
 };
 
 LockpickingMenu::FnProcessMessage	LockpickingMenu::fnProcessMessage = nullptr;
-
 
 
 
@@ -767,39 +603,6 @@ public:
 };
 
 DialogueMenuEx::FnProcessMessage	DialogueMenuEx::fnProcessMessage = nullptr;
-
-
-
-
-class TrainingMenu : public IMenu
-{
-public:
-	typedef UInt32(TrainingMenu::*FnProcessMessage)(UIMessage*);
-
-	static FnProcessMessage fnProcessMessage;
-
-
-	UInt32 ProcessMessage_Hook(UIMessage* msg)
-	{
-		UInt32 result = (this->*fnProcessMessage)(msg);
-		if (msg->type == UIMessage::kMessage_Message)
-		{
-			InputStringHolder* input = InputStringHolder::GetSingleton();
-			BSUIMessageData* msgData = static_cast<BSUIMessageData*>(msg->data);
-			_MESSAGE("msgData: %s", msgData->unk0C.c_str());
-		}
-
-		return result;
-	}
-
-	static void InitHook()
-	{
-		fnProcessMessage = SafeWrite32(0x10E8004 + 0x04 * 4, &ProcessMessage_Hook);
-	}
-};
-
-TrainingMenu::FnProcessMessage	TrainingMenu::fnProcessMessage = nullptr;
-
 
 
 
@@ -870,9 +673,6 @@ public:
 				GFxKeyEvent* key = static_cast<GFxKeyEvent*>(event);
 				if (key->keyCode == GFxKey::Code::I)
 				{
-					//Inventory3DManager* invManager = Inventory3DManager::GetSingleton();
-					//invManager->Unk5();
-					//invManager->Unk3();
 					GFxValue result;
 					GFxMovieView* view = this->GetMovieView();
 					if (view != nullptr)
@@ -942,27 +742,51 @@ MagicMenuEx::FnProcessMessage	MagicMenuEx::fnProcessMessage = nullptr;
 
 
 
-
-class PlayerControlsEx : public BSTEventSink<MenuModeChangeEvent>
+class SleepWaitMenu : public IMenu
 {
-public:	
-	typedef EventResult(PlayerControlsEx::*FnReceiveEvent)(MenuModeChangeEvent *, BSTEventSource<MenuModeChangeEvent> *);
-	static FnReceiveEvent fnReceiveEvent;
+public:
+	typedef UInt32(SleepWaitMenu::*FnProcessMessage)(UIMessage*);
 
-	EventResult ReceiveEvent_Hook(MenuModeChangeEvent *evn, BSTEventSource<MenuModeChangeEvent> *source)// override;	// 00772B10
+	static FnProcessMessage fnProcessMessage;
+
+	UInt32 ProcessMessage_Hook(UIMessage* msg)
 	{
-		EventResult result = (this->*fnReceiveEvent)(evn, source);
-		_MESSAGE("menuMode: %d, unk:%d", evn->menuMode, *((UInt8*)this + 54));
+		UInt32 result = (this->*fnProcessMessage)(msg);
+
+		if (msg->type == UIMessage::kMessage_Open)
+		{
+			MenuManager* mm = MenuManager::GetSingleton();
+			UIStringHolder* holder = UIStringHolder::GetSingleton();
+
+			if (holder && mm && mm->IsMenuOpen(holder->sleepWaitMenu) && (this->flags & IMenu::kType_PauseGame) && mm->numPauseGame)
+			{
+				mm->numPauseGame -= 1;
+				this->flags &= ~IMenu::kType_PauseGame;
+				if (!mm->numPauseGame)
+				{
+					static MenuModeChangeEvent event;
+					event.unk0 = 0;
+					event.menuMode = 0;
+
+					mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
+					typedef void(__fastcall * Fn)(void*, void*); //MenuModeChangeEvent
+					Fn ReleaseObject = (Fn)0xA511B0;
+					ReleaseObject(&event, nullptr);
+				}
+			}
+		}
+
 		return result;
 	}
 
 	static void InitHook()
 	{
-		fnReceiveEvent = SafeWrite32(0x010D4668 + 0x01 * 4, &ReceiveEvent_Hook);
+		fnProcessMessage = SafeWrite32(0x010E7754 + 0x04 * 4, &ProcessMessage_Hook);
 	}
 };
 
-PlayerControlsEx::FnReceiveEvent	PlayerControlsEx::fnReceiveEvent = nullptr;
+SleepWaitMenu::FnProcessMessage	SleepWaitMenu::fnProcessMessage = nullptr;
+
 
 
 
@@ -999,7 +823,6 @@ void UICallBack_DropItem(FxDelegateArgs* pargs)
 					g_thePlayer->DropItem(&handle, form, extraList, count, 0, 0);
 
 					UInt32(__fastcall * sub_755420)(void*, void*) = (UInt32(__fastcall *)(void*, void*))0x00755420;
-
 					sub_755420(*(void**)0x12E32E8, nullptr);
 
 					inventory->inventoryData->Update(g_thePlayer);
@@ -1014,12 +837,47 @@ void UICallBack_CloseTweenMenu(FxDelegateArgs* pargs)
 {
 	PlayerCamera* camera = PlayerCamera::GetSingleton();
 	camera->ResetCamera();
+
 	MenuManager* mm = MenuManager::GetSingleton();
 	UIStringHolder* holder = UIStringHolder::GetSingleton();
 	mm->CloseMenu(holder->tweenMenu);
 
 	IMenu* inventoryMenu = reinterpret_cast<IMenu*>(pargs->pThisMenu);
 	*((bool*)inventoryMenu + 0x51) = 1;
+}
+
+
+void UICallBack_SelectItem(FxDelegateArgs* pargs)
+{
+	InventoryMenu* inventory = reinterpret_cast<InventoryMenu*>(pargs->pThisMenu);
+	GFxValue* args = pargs->args;
+
+	TESForm* form = nullptr;
+	BaseExtraList* extraList = nullptr;
+
+	void(__fastcall* EquipSlot)(InventoryMenu*, void*, BGSEquipSlot*) = (void(__fastcall*)(InventoryMenu*, void*, BGSEquipSlot*))0x00869DB0;
+	if (inventory != nullptr && inventory->bPCControlsReady && pargs->numArgs && args->Type == GFxValue::ValueType::VT_Number)
+	{
+		if (args->GetNumber() == 0.0f)
+		{
+			BGSEquipSlot* rightHandSlot = GetRightHandSlot();
+			EquipSlot(inventory, nullptr, rightHandSlot);
+		}
+		else if (args->GetNumber() == 1.0f)
+		{
+			BGSEquipSlot* leftHandSlot = GetLeftHandSlot();
+			EquipSlot(inventory, nullptr, leftHandSlot);
+		}
+	}
+	else
+	{
+		EquipSlot(inventory, nullptr, nullptr);
+	}
+
+	inventory->inventoryData->Update(g_thePlayer);
+	auto fn = [=](UInt32 time)->bool {std::this_thread::sleep_for(std::chrono::milliseconds(time)); inventory->UpdatePlayerInfo(); return true; };
+	really_async(fn, 70);
+	really_async(fn, 120);
 }
 
 
@@ -1043,26 +901,34 @@ void Hook_Game_Commit()
 	InventoryMenuEx::InitHook();
 	DialogueMenuEx::InitHook();
 	MagicMenuEx::InitHook();
+	//SleepWaitMenu::InitHook();
 
-	//fix inventory
+	//Fix SelectItem.
+	SafeWrite32(0x00869F21, 0x90909090);
+	SafeWrite32(0x00869F25, 0x90909090);
+	SafeWrite8(0x00869F29, 0x90);
+
+	//Fix Inventory.
 	SafeWrite16(0x0086BF6F, 0x9090);
 	SafeWrite32(0x0086BF71, 0x90909090);
 
-	//fix container
+	//Fix Container
 	SafeWrite16(0x0084C068, 0x9090);
 	SafeWrite32(0x0084C06A, 0x90909090);
 
 	SafeWrite16(0x0084AC57, 0x9090);
 	SafeWrite32(0x0084AC59, 0x90909090);
 
-	//drop item in inventory
+	//Drop item in inventory
 	SafeWrite32(0x0086B437, (UInt32)UICallBack_DropItem);
+	//equip item in inventory
+	SafeWrite32(0x0086B3F4, (UInt32)UICallBack_SelectItem);
 
-	//fix camera in tweenmenu:
+	//Fix camera in tweenmenu.
 	SafeWrite8(0x008951C4, 0x90);
 	SafeWrite32(0x008951C5, 0x90909090);
 
-	//redefine papyrus function: Utility.IsInMenuMode()
+	//Redefine papyrus function: Utility.IsInMenuMode()
 	WriteRelJump(0x00918D90, (UInt32)Hook_IsInMenuMode);
 
 	{
