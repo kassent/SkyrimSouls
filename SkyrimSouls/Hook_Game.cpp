@@ -19,6 +19,7 @@
 #include <Skyrim/Animation/IAnimationGraphManagerHolder.h>
 #include <Skyrim/Menus/Inventory3DManager.h>
 #include <Skyrim/FileIO/BGSSaveLoadManager.h>
+#include <Skyrim/BSMain/Setting.h>
 
 #include <vector>
 #include <string>
@@ -1017,6 +1018,11 @@ void RegisterEventHandler()
 	{
 		BSTEventSource<MenuOpenCloseEvent>* eventDispatcher = mm->GetMenuOpenCloseEventSource();
 		eventDispatcher->AddEventSink(MenuOpenCloseEventHandler::GetSingleton());
+	}
+	Setting* setting = GetINISetting("fBookOpenTime");
+	if (setting != nullptr)
+	{
+		setting->SetDouble(1200.0);
 	}
 }
 
