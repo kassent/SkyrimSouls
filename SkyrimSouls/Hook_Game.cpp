@@ -129,7 +129,6 @@ public:
 SInt32		MenuOpenCloseEventHandler::unpausedCount = 0;
 
 
-
 void* STDFN Hook_GetFavoritesItem(void* form)
 {
 	MenuManager* manager = MenuManager::GetSingleton();
@@ -140,7 +139,6 @@ void* STDFN Hook_GetFavoritesItem(void* form)
 	}
 	return form;
 }
-
 
 void STDFN Hook_KillActor(Actor* actor)
 {
@@ -208,6 +206,7 @@ public:
 
 FavoritesHandler::FnCanProcess FavoritesHandler::fnCanProcess;
 
+
 //BookMenu
 //0x60
 class BookMenu : public IMenu,
@@ -215,6 +214,75 @@ class BookMenu : public IMenu,
 	public BSTEventSink<BSAnimationGraphEvent>
 {
 public:
+
+	class TurnPageUpdater : public TaskDelegate
+	{
+	public:
+		TES_FORMHEAP_REDEFINE_NEW();
+
+		TurnPageUpdater(bool direction) : m_direction(direction)
+		{
+
+		}
+
+		virtual void Run() override
+		{
+			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
+			if (mm->IsMenuOpen(stringHolder->bookMenu))
+			{
+				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+				if (bookMenu != nullptr)
+				{
+					bookMenu->TurnPage(m_direction);
+					if (mm->numPauseGame && (bookMenu->flags & IMenu::kType_PauseGame))
+					{
+						mm->numPauseGame -= 1;
+						bookMenu->flags &= ~IMenu::kType_PauseGame;
+					}
+				}
+			}
+		}
+
+		virtual void Dispose() override
+		{
+			delete this;
+		}
+
+		static void Queue(bool direction)
+		{
+			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
+
+			if (mm->IsMenuOpen(stringHolder->bookMenu))
+			{
+				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+				if (bookMenu != nullptr)
+				{
+					if (mm->numPauseGame)
+					{
+						bookMenu->TurnPage(direction);
+					}
+					else
+					{
+						mm->numPauseGame += 1;
+						bookMenu->flags |= IMenu::kType_PauseGame;
+						const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+						const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+						if (task)
+						{
+							TurnPageUpdater *delg = new TurnPageUpdater(direction);
+							task->AddTask(delg);
+						}
+					}
+				}
+			}
+		}
+
+	private:
+		bool						m_direction;
+	};
+
 
 	class GlobalBookData
 	{
@@ -249,25 +317,58 @@ public:
 
 	EventResult	ReceiveEvent_Hook(BSAnimationGraphEvent * evn, BSTEventSource<BSAnimationGraphEvent> * source)
 	{
-		//animatinName: OpenStop
-		//animatinName: PageForwardStop
-		//animatinName: PageBackStop
-		//animatinName: SoundPlay
-		//animatinName: CloseOut
-
 		EventResult result = (this->*fnReceiveEvent)(evn, source);
-
-		if (evn->animName == "PageBackStop" || evn->animName == "PageForwardStop" || evn->animName == "OpenStop") //animatonName: PageBackStop animatonName: PageForwardStop
+		if (evn->animName == "PageBackStop" || evn->animName == "PageForwardStop" || evn->animName == "OpenStop")
+		{
 			bSlowndownRefreshFreq = false;
+		}
 		return result;
 	}
 
+	void TurnPage(bool direction)
+	{
+		bool animationVariable = false;
+		this->GetAnimationVariableBool("bPageFlipping", animationVariable);//是否正在翻页中。
+		if (!animationVariable)
+		{
+			GFxValue result;
+			GFxValue argument;
+
+			((void(__stdcall*)(GFxValue&, UInt32, UInt32, void*))0x00402290)(argument, 0x10, 1, (void*)0x0040F490);//构造GFxValue数组,这里只需要一个就够了。
+
+			double turnPageNumber = (this->isNote) ? 1.00f : 2.00f;
+			if (!direction)
+				turnPageNumber = -turnPageNumber;
+
+			argument.SetNumber(turnPageNumber);
+			result.SetBoolean(false);
+
+			bool(__fastcall* Invoke)(GFxMovieView*, void*, char*, GFxValue*, GFxValue*, UInt32) = (bool(__fastcall*)(GFxMovieView*, void*, char*, GFxValue*, GFxValue*, UInt32))(*(*(UInt32**)this->bookView + 0x17));
+			if (Invoke(this->bookView, nullptr, "BookMenu.BookMenuInstance.TurnPage", &result, &argument, 1) && result.GetBool())
+			{
+				if (direction)
+					this->SendAnimationEvent("PageForward");
+				else
+					this->SendAnimationEvent("PageBack");
+
+				if (this->isNote)
+				{
+					((void(__cdecl*)(char*))0x00899620)("ITMNotePageTurn");
+				}
+			}
+			((void(__stdcall*)(GFxValue&, UInt32, UInt32, void*))0x004022D0)(argument, 0x10, 1, (void*)0x00691680); //GFxValue数组的析构函数。
+		}
+	}
+
+
 	UInt32 ProcessMessage_Hook(UIMessage* msg)
 	{
-		if (settings.m_menuConfig["Book Menu"])
+		UIStringHolder* holder = UIStringHolder::GetSingleton();
+
+		if (settings.m_menuConfig[holder->bookMenu.c_str()])
 		{
-			static MenuManager* mm = MenuManager::GetSingleton();
-			static UIStringHolder* holder = UIStringHolder::GetSingleton();
+			InputStringHolder* input = InputStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
 
 			if (msg->type == UIMessage::kMessage_Open)
 			{
@@ -372,27 +473,16 @@ public:
 
 			if (msg->type == UIMessage::kMessage_Message)
 			{
-				InputStringHolder* input = InputStringHolder::GetSingleton();
 				BSUIMessageData* msgData = static_cast<BSUIMessageData*>(msg->data);
 
-				if (msgData->unk0C == input->prevPage || msgData->unk0C == input->nextPage || msgData->unk0C == input->leftEquip || msgData->unk0C == input->rightEquip)
+				if (msgData->unk0C == input->prevPage || msgData->unk0C == input->leftEquip)
 				{
-					//double iPageSetIndex = this->bookView->GetVariableDouble("BookMenu.BookMenuInstance.iPageSetIndex");
-					//bSlowndownRefreshFreq = true;
-
-					mm->numPauseGame += 1;
-					Sleep(settings.m_delayTime);
-
-					UInt32 result = (this->*fnProcessMessage)(msg);
-
-					mm->numPauseGame -= 1;
-
-					return result;
-
-					//bSlowndownRefreshFreq
-
+					TurnPageUpdater::Queue(false);
 				}
-
+				else if (msgData->unk0C == input->nextPage || msgData->unk0C == input->rightEquip)
+				{
+					TurnPageUpdater::Queue(true);
+				}
 				else if (msgData->unk0C == input->accept)
 				{
 					if (!*(bool*)0x1B3E5D4 || this->disableCloseMsg)
@@ -400,26 +490,44 @@ public:
 					GlobalBookData* data = GlobalBookData::GetSingleton();
 					if (data->reference != nullptr)
 					{
-						bSlowndownRefreshFreq = false;
 						g_thePlayer->PickUpItem(data->reference, 1, false, true);
 						this->SendAnimationEvent("SoundPlay");
 						this->SendAnimationEvent("CloseOut");
 						mm->CloseMenu(holder->bookMenu);
-
-						return 1;
 					}
 				}
 				else if (msgData->unk0C == input->cancel)
 				{
 					if (!*(bool*)0x1B3E5D4 || this->disableCloseMsg)
 						return 0;
-					bSlowndownRefreshFreq = false;
 					this->SendAnimationEvent("SoundPlay");
 					this->SendAnimationEvent("CloseOut");
 					mm->CloseMenu(holder->bookMenu);
-
-					return 1;
 				}
+				return 1;
+			}
+
+			if (msg->type == UIMessage::kMessage_Scaleform)
+			{
+				if (!*(bool*)0x1B3E5D4)
+					return 0;
+
+				BSUIScaleformData* scaleformData = static_cast<BSUIScaleformData*>(msg->data);
+				GFxEvent* event = scaleformData->event;
+
+				if (event->type == GFxEvent::KeyDown)
+				{
+					GFxKeyEvent* key = static_cast<GFxKeyEvent*>(event);
+					if (key->keyCode == GFxKey::Code::Left || key->keyCode == GFxKey::Code::Right)
+					{
+						TurnPageUpdater::Queue(key->keyCode == GFxKey::Code::Right);
+					}
+					else if (this->isNote && (key->keyCode == GFxKey::Code::Up || key->keyCode == GFxKey::Code::Down))
+					{
+						TurnPageUpdater::Queue(key->keyCode == GFxKey::Code::Down);
+					}
+				}
+				return 1;
 			}
 			return (this->*fnProcessMessage)(msg);
 		}
@@ -427,7 +535,6 @@ public:
 		{
 			return (this->*fnProcessMessage)(msg);
 		}
-
 	}
 
 	static void InitHook()
@@ -461,7 +568,7 @@ public:
 	DEFINE_MEMBER_FN(CreateBookContent, void, 0x00845F70);
 
 };
-static_assert(sizeof(BookMenu) == 0x60, "bookMenu");
+static_assert(sizeof(BookMenu) == 0x60, "BookMenu");
 
 BookMenu::FnProcessMessage	BookMenu::fnProcessMessage = nullptr;
 BookMenu::FnReceiveEvent	BookMenu::fnReceiveEvent = nullptr;
@@ -526,7 +633,6 @@ public:
 		}
 	}
 };
-
 LockpickingMenu::FnProcessMessage	LockpickingMenu::fnProcessMessage = nullptr;
 
 
@@ -553,7 +659,6 @@ public:
 		fnProcessMessage = SafeWrite32(0x010E4C9C + 0x04 * 4, &ProcessMessage_Hook);
 	}
 };
-
 DialogueMenuEx::FnProcessMessage	DialogueMenuEx::fnProcessMessage = nullptr;
 
 
@@ -644,7 +749,6 @@ public:
 		WriteRelCall(0x00A5D686, &Release_Hook);
 	}
 };
-
 InventoryMenuEx::FnProcessMessage	InventoryMenuEx::fnProcessMessage = nullptr;
 
 
@@ -690,7 +794,6 @@ public:
 		SafeWrite8(0x0087388A, 0x90);
 	}
 };
-
 MagicMenuEx::FnProcessMessage	MagicMenuEx::fnProcessMessage = nullptr;
 
 
@@ -736,9 +839,7 @@ public:
 		fnProcessMessage = SafeWrite32(0x010E7754 + 0x04 * 4, &ProcessMessage_Hook);
 	}
 };
-
 SleepWaitMenu::FnProcessMessage	SleepWaitMenu::fnProcessMessage = nullptr;
-
 
 
 
@@ -837,6 +938,7 @@ public:
 	}
 };
 
+
 void UICallBack_SelectItem(FxDelegateArgs* pargs)
 {
 	InventoryMenu* inventory = reinterpret_cast<InventoryMenu*>(pargs->pThisMenu);
@@ -930,11 +1032,6 @@ void Hook_Game_Commit()
 	DialogueMenuEx::InitHook();
 	MagicMenuEx::InitHook();
 	//SleepWaitMenu::InitHook();
-
-	//Fix SelectItem.
-	//SafeWrite32(0x00869F21, 0x90909090);
-	//SafeWrite32(0x00869F25, 0x90909090);
-	//SafeWrite8(0x00869F29, 0x90);
 
 	//Fix Inventory.
 	SafeWrite16(0x0086BF6F, 0x9090);
@@ -1033,24 +1130,5 @@ void Hook_Game_Commit()
 			sub esp, 0x104
 		END_ASM(Hook_RequstAutoSave)
 	}
-
-	/*
-	.text:00A5D8AA                 mov     edi, 2000h
-	.text:00A5D8AF                 test    [ecx+10h], edi
-	.text:00A5D8B2                 jbe     short loc_A5D8C1
-	.text:00A5D8B4                 cmp     dword ptr [esi+0CCh], 0
-	.text:00A5D8BB                 jnz     loc_A5DA78
-	.text:00A5D8C1				   ; 300:             if ( (*(int (__stdcall **)(int))(*(_DWORD *)v39 + 16))(v5) != 1 )
-	.text:00A5D8C1
-	.text:00A5D8C1 loc_A5D8C1:     ; CODE XREF: sub_A5D370+542j
-	.text:00A5D8C1                 mov     edx, [ecx]
-	*/
-	//{
-	//	START_ASM(Hook_CanOpenMenu, 0x00A5D8AA, 0x00A5D8C1, 0);
-	//		pushad	
-
-	//		popad
-	//	END_ASM(Hook_CanOpenMenu);
-	//}
 }
 
