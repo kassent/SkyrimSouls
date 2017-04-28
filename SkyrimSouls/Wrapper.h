@@ -42,6 +42,7 @@ public:
 					menu->flags &= ~IMenu::kType_PauseGame;
 					menu->flags &= ~IMenu::kType_StopDrawingWorld;
 					menu->flags |= IMenu::kType_StopCrosshairUpdate;
+					//menu->flags |= IMenu::kType_ItemMenu;
 					if (menu->menuDepth < 0x3)
 					{
 						menu->menuDepth = 0x3;

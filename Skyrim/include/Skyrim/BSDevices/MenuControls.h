@@ -46,7 +46,7 @@ public:
 	BSTArray<MenuEventHandler*>	handlers;		// 0C
 	BSTArray<void*>				regBuffer;		// 18
 	UInt32						unk24;
-	UInt32						unk28;
+	void*						unk28;
 	UInt32						unk2C;
 	UInt32						unk30;
 	UInt32						unk34;

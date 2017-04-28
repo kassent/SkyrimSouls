@@ -10,7 +10,8 @@
 #include <Skyrim/BSDevices/KeyCode.h>
 #include <Skyrim/Forms/BGSEquipSlot.h>
 #include <Skyrim/Forms/PlayerCharacter.h>
-#include "Skyrim/BSDevices/InputMappingManager.h"
+#include <Skyrim/BSDevices/InputMappingManager.h>
+#include <Skyrim/BSDevices/MenuControls.h>
 #include <Skyrim/Camera/PlayerCamera.h>
 #include <SKyrim/BSDevices/PlayerControls.h>
 #include <Skyrim/NetImmerse/NiAVObject.h>
@@ -31,8 +32,7 @@ class MenuOpenCloseEventHandler : public BSTEventSink<MenuOpenCloseEvent>
 {
 public:
 	static SInt32							unpausedCount;
-	static bool								disableAutoSave;
-		//127248C
+	//127248C
 	virtual EventResult ReceiveEvent(MenuOpenCloseEvent *evn, BSTEventSource<MenuOpenCloseEvent> *src) override
 	{
 		auto it = settings.m_menuConfig.find(std::string(evn->menuName.c_str()));
@@ -43,13 +43,25 @@ public:
 
 			if (evn->opening)
 			{
+				MenuControls* menuControls = MenuControls::GetSingleton();
+				*((bool*)(menuControls->unk28) + 0x25) = true;
+
+				InputMappingManager* input = InputMappingManager::GetSingleton();
+				if (evn->menuName == holder->containerMenu 
+					|| evn->menuName == holder->barterMenu 
+					|| evn->menuName == holder->giftMenu 
+					|| evn->menuName == holder->inventoryMenu 
+					|| evn->menuName == holder->magicMenu)
+				{
+					input->DisableControl(InputMappingManager::ContextType::kContext_Gameplay);
+				}
 				if (unpausedCount++ == 0)
 				{
-					if (mm->IsMenuOpen(holder->dialogueMenu) && (evn->menuName == holder->containerMenu || evn->menuName == holder->barterMenu || evn->menuName == holder->giftMenu || evn->menuName == holder->trainingMenu))
+					if (mm->IsMenuOpen(holder->dialogueMenu) && (evn->menuName == holder->containerMenu 
+						|| evn->menuName == holder->barterMenu 
+						|| evn->menuName == holder->giftMenu 
+						|| evn->menuName == holder->trainingMenu))
 					{
-						//dialogueTarget = g_thePlayer->GetDialogueTarget();
-						//IMenu* dialogueMenu = mm->GetMenu(holder->dialogueMenu);
-						//_MESSAGE("menuDepth: %d", dialogueMenu->menuDepth);
 						GFxMovieView* view = mm->GetMovieView(holder->dialogueMenu);
 						view->SetVisible(false);
 					}
@@ -57,36 +69,39 @@ public:
 					for (auto element : control->handlers)
 					{
 						*((UInt32*)element + 1) = false;
-						//_MESSAGE("handler name: %s", GetObjectClassName(element));
-					}
-					//InputManager* inputManager = InputManager::GetSingleton();
-					if (evn->menuName == holder->inventoryMenu || evn->menuName == holder->containerMenu || evn->menuName == holder->barterMenu || evn->menuName ==holder->magicMenu || evn->menuName == holder->giftMenu)
-					{
-						InputMappingManager* input = InputMappingManager::GetSingleton();
-						input->DisableControl(0);
 					}
 				}
 			}
 			else
 			{
+				InputMappingManager* input = InputMappingManager::GetSingleton();
+				if (evn->menuName == holder->containerMenu 
+					|| evn->menuName == holder->barterMenu 
+					|| evn->menuName == holder->giftMenu 
+					|| evn->menuName == holder->inventoryMenu 
+					|| evn->menuName == holder->magicMenu)
+				{
+					input->EnableControl(InputMappingManager::ContextType::kContext_Gameplay);
+				}
 				if (--unpausedCount < 0)
 					unpausedCount = 0;
 				if (unpausedCount == 0)
 				{
 					PlayerControls* control = PlayerControls::GetSingleton();
 					for (auto element : control->handlers)
-						*((UInt32*)element + 1) = true;
-
-					if (evn->menuName == holder->inventoryMenu || evn->menuName == holder->containerMenu || evn->menuName == holder->barterMenu || evn->menuName == holder->magicMenu || evn->menuName == holder->giftMenu)
 					{
-						InputMappingManager* input = InputMappingManager::GetSingleton();
-						input->EnableControl(0);
+						*((UInt32*)element + 1) = true;
 					}
-					if (mm->IsMenuOpen(holder->dialogueMenu)/* && (evn->menuName == holder->containerMenu || evn->menuName == holder->barterMenu || evn->menuName == holder->giftMenu || evn->menuName == holder->trainingMenu)*/)
+					MenuControls* menuControls = MenuControls::GetSingleton();
+					*((bool*)(menuControls->unk28) + 0x25) = false;
+
+					if (mm->IsMenuOpen(holder->dialogueMenu))
 					{
 						GFxMovieView* view = mm->GetMovieView(holder->dialogueMenu);
-						if(!view->GetVisible())
+						if (!view->GetVisible())
+						{
 							view->SetVisible(true);
+						}
 					}
 				}
 				if (evn->menuName == holder->console)
@@ -105,16 +120,13 @@ public:
 		return kEvent_Continue;
 	}
 
-
 	static MenuOpenCloseEventHandler* GetSingleton()
 	{
 		static MenuOpenCloseEventHandler instance;
 		return &instance;
 	}
 };
-
 SInt32		MenuOpenCloseEventHandler::unpausedCount = 0;
-bool		MenuOpenCloseEventHandler::disableAutoSave = false;
 
 
 
@@ -146,7 +158,7 @@ void STDFN Hook_KillActor(Actor* actor)
 				isProcessing = true;
 			}
 		}
-		if(isProcessing) Sleep(200);
+		if (isProcessing) Sleep(200);
 	}
 }
 
@@ -167,7 +179,7 @@ bool STDFN Hook_IsInMenuMode()
 bool STDFN Hook_AddUIMessage(const BSFixedString& strData, UInt32 msgID)
 {
 	UIStringHolder* holder = UIStringHolder::GetSingleton();
-	if (msgID == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0 && (strData == holder->sleepWaitMenu || strData == "Loot Menu"))
+	if (msgID == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0 && (strData == holder->sleepWaitMenu || strData == holder->favoritesMenu|| strData == "Loot Menu"))
 	{
 		return false;
 	}
@@ -184,17 +196,7 @@ public:
 
 	bool CanProcess_Hook(InputEvent *evn)
 	{
-		bool result = (this->*fnCanProcess)(evn);
-		if (evn->deviceType == BSInputDevice::kType_Keyboard && evn->eventType == InputEvent::kEventType_Button)
-		{
-			ButtonEvent *button = static_cast<ButtonEvent *>(evn);
-			if (button->keyMask >= KeyCode::Num1 && button->keyMask <= KeyCode::Num8)
-			{
-				//_MESSAGE("button->keyMask = %d", button->keyMask);
-				result = true;
-			}
-		}
-		return result;
+		return (this->*fnCanProcess)(evn);
 	}
 
 	static void InitHook()
@@ -206,11 +208,11 @@ public:
 
 FavoritesHandler::FnCanProcess FavoritesHandler::fnCanProcess;
 
-
+//BookMenu
 //0x60
 class BookMenu : public IMenu,
-				 public SimpleAnimationGraphManagerHolder,
-				 public BSTEventSink<BSAnimationGraphEvent>
+	public SimpleAnimationGraphManagerHolder,
+	public BSTEventSink<BSAnimationGraphEvent>
 {
 public:
 
@@ -255,7 +257,7 @@ public:
 
 		EventResult result = (this->*fnReceiveEvent)(evn, source);
 
-		if(evn->animName == "PageBackStop" || evn->animName == "PageForwardStop" || evn->animName == "OpenStop") //animatonName: PageBackStop animatonName: PageForwardStop
+		if (evn->animName == "PageBackStop" || evn->animName == "PageForwardStop" || evn->animName == "OpenStop") //animatonName: PageBackStop animatonName: PageForwardStop
 			bSlowndownRefreshFreq = false;
 		return result;
 	}
@@ -286,7 +288,7 @@ public:
 						float unk1 = sub_844FD0((void*)0x1B3E580);
 
 						void(__fastcall* sub_420630)(void*, void*, float) = (void(__fastcall*)(void*, void*, float))0x00420630;
-						sub_420630(this->unk3C, nullptr,unk1);
+						sub_420630(this->unk3C, nullptr, unk1);
 
 						struct
 						{
@@ -428,61 +430,14 @@ public:
 
 	}
 
-	static void STDFN Hook_SetBookText()
-	{
-		auto fn = []()->bool {
-			std::this_thread::sleep_for(std::chrono::milliseconds(settings.m_waitTime));
-			MenuManager* mm = MenuManager::GetSingleton();
-			UIStringHolder* holder = UIStringHolder::GetSingleton();
-			if (holder && mm && mm->IsMenuOpen(holder->bookMenu))
-			{
-				IMenu* bookMenu = mm->GetMenu(holder->bookMenu);
-				if ((bookMenu->flags & IMenu::kType_PauseGame) == IMenu::kType_PauseGame && settings.m_menuConfig["Book Menu"])
-				{
-					mm->numPauseGame -= 1;
-					bookMenu->flags &= ~IMenu::kType_PauseGame;
-					if (!mm->numPauseGame)
-					{
-						static MenuModeChangeEvent event;
-						event.unk0 = 0;
-						event.menuMode = 0;
-						mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
-						typedef void(__fastcall * Fn)(void*, void*); //MenuModeChangeEvent
-						Fn fn = (Fn)0xA511B0;
-						fn(&event, nullptr);
-					}
-				}
-			}
-			return true;
-		};
-		really_async(fn);
-	}
-
 	static void InitHook()
 	{
 		fnProcessMessage = SafeWrite32(0x010E3AA4 + 0x04 * 4, &ProcessMessage_Hook);
 
 		fnReceiveEvent = SafeWrite32(0x010E3A98 + 0x01 * 4, &ReceiveEvent_Hook);
-
-		//SafeWrite16(0x846C73, 0x00EB);
-		//{
-		//	static const UInt32 kHook_SetBookText_Call = 0x00841A90;
-
-		//	START_ASM(Hook_SetBookText, 0x00845EFE, 0x00845F0A, 1)
-
-		//		add esp, 0xC
-		//		lea ecx, [esp + 0x2C]
-		//		call [kHook_SetBookText_Call]
-		//		pushad
-		//		call Hook_SetBookText
-		//		popad
-
-		//	END_ASM(Hook_SetBookText)
-		//}
-
 	}
 
-//members:
+	//members:
 	UInt32					unk2C;					// ini'd 0   char*  bookContent?
 	UInt32					unk30;
 	UInt32					unk34;
@@ -526,7 +481,7 @@ public:
 
 	UInt32 ProcessMessage_Hook(UIMessage* msg)
 	{
-		return (this->*fnProcessMessage)(msg);	
+		return (this->*fnProcessMessage)(msg);
 	}
 
 	static void STDFN Hook_SetLockInfo()
@@ -588,11 +543,7 @@ public:
 		if (msg->type == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0)
 		{
 			this->menuDepth = 2;
-			GFxMovieView* view = this->GetMovieView();
-			if (view != nullptr)
-			{
-				//view->SetVisible(false);
-			}
+			//GFxMovieView* view = this->GetMovieView();
 		}
 		return (this->*fnProcessMessage)(msg);
 	}
@@ -622,14 +573,15 @@ public:
 			{
 				void(__fastcall* sub_897160)(void*, void*) = (void(__fastcall*)(void*, void*))0x00897160;//Camera mode.
 				sub_897160(*(void**)0x1B2E4C0, nullptr);
+				//  sub_897130(dword_1B2E4C0);
 
 				void(__cdecl* sub_861470)(void*) = (void(__cdecl*)(void*))0x861470;  //Enable prompt.
 				sub_861470((void*)0x10E3824);
 
 				InputMappingManager* input = InputMappingManager::GetSingleton();
-				input->DisableControl(4);
-				input->DisableControl(3);
-				input->DisableControl(1);
+				input->DisableControl(InputMappingManager::ContextType::kContext_Inventory);
+				input->DisableControl(InputMappingManager::ContextType::kContext_ItemMenu);
+				input->DisableControl(InputMappingManager::ContextType::kContext_MenuMode);
 
 				//A67260  Disable();
 				//void(__fastcall* sub_42F240)(void*, void*, bool) = (void(__fastcall*)(void*, void*, bool))0x0042F240;  //???????????
@@ -933,7 +885,15 @@ void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 	{
 		GFxValue value(args[i]);
 		BGSSaveLoadManager* saveLoadManager = BGSSaveLoadManager::GetSingleton();
-		GFxValue arg(!saveLoadManager->CanSaveLoadGame(!isBool));
+		GFxValue arg;
+		if (i == 1) //Load
+		{
+			arg.SetBoolean(false);
+		}
+		else
+		{
+			arg.SetBoolean(!saveLoadManager->CanSaveLoadGame(!isBool));
+		}
 		args[i].pObjectInterface->SetMember(args[i].Value.pData, "disabled", arg, value.GetType() == GFxValue::ValueType::VT_DisplayObject);
 		//_MESSAGE("pGFxValue: %p    pObjectInterface: %p    pData:%p", &args[i], args[i].pObjectInterface, args[i].Value.pData);
 		if ((arg.GetType() >> 6) & 1)
@@ -966,6 +926,7 @@ void Hook_Game_Commit()
 	BookMenu::InitHook();
 	LockpickingMenu::InitHook();
 	InventoryMenuEx::InitHook();
+
 	DialogueMenuEx::InitHook();
 	MagicMenuEx::InitHook();
 	//SleepWaitMenu::InitHook();
@@ -986,13 +947,13 @@ void Hook_Game_Commit()
 	SafeWrite16(0x0084AC57, 0x9090);
 	SafeWrite32(0x0084AC59, 0x90909090);
 
-	//Drop item in inventory
+	//Drop item in Inventory menu.
 	SafeWrite32(0x0086B437, (UInt32)UICallBack_DropItem);
-	//equip item in inventory
+	//Equip item in Inventory Menu
 	SafeWrite32(0x0086B3F4, (UInt32)UICallBack_SelectItem);
-	//008A7F72
+	//SetSaveDisabled in Journal Menu
 	SafeWrite32(0x008A7F73, (UInt32)UICallBack_SetSaveDisabled);
-	//Fix camera in tweenmenu.
+	//Fix camera in Tweenmenu.
 	SafeWrite8(0x008951C4, 0x90);
 	SafeWrite32(0x008951C5, 0x90909090);
 
@@ -1003,7 +964,6 @@ void Hook_Game_Commit()
 		static const UInt32 kHook_GetFavoritesSpell_Jmp = 0x85BA03;
 
 		START_ASM(Hook_GetFavoritesSpell, 0x0085B919, 0x0085B921, 1);
-
 			push eax
 			call Hook_GetFavoritesItem
 			test eax, eax
@@ -1011,7 +971,6 @@ void Hook_Game_Commit()
 			JMP_ASM(Hook_GetFavoritesSpell)
 			InvalidSpell:
 			jmp [kHook_GetFavoritesSpell_Jmp]
-
 		END_ASM(Hook_GetFavoritesSpell);
 	}
 
@@ -1019,21 +978,18 @@ void Hook_Game_Commit()
 		static const UInt32 kHook_GetFavoritesItem_Jmp = 0x85BB34;
 
 		START_ASM(Hook_GetFavoritesItem, 0x0085BA52, 0x0085BA5A, 1);
-
 			push eax
 			call Hook_GetFavoritesItem
 			test eax, eax
 			je InvalidItem
 			JMP_ASM(Hook_GetFavoritesItem)
 			InvalidItem:
-			jmp	[kHook_GetFavoritesItem_Jmp]
-
+			jmp [kHook_GetFavoritesItem_Jmp]
 		END_ASM(Hook_GetFavoritesItem);
 	}
 
 	{
 		START_ASM(Hook_KillActor, 0x006AC3A0, 0x006AC3A9, 1);
-
 			push ecx
 			push ecx
 			call Hook_KillActor
@@ -1041,13 +997,11 @@ void Hook_Game_Commit()
 			push esi
 			mov esi, ecx
 			mov ecx, [esi + 0x88]
-
 		END_ASM(Hook_KillActor);
 	}
 
 	{
 		START_ASM(Hook_AddUIMessage, 0x00431B00, 0x00431B0A, 1);
-
 			push ecx
 			mov eax, [esp + 0xC]
 			push eax
@@ -1063,7 +1017,6 @@ void Hook_Game_Commit()
 			push esi
 			mov esi, ecx
 			mov eax, [esi + 0x1C8]
-
 		END_ASM(Hook_AddUIMessage);
 	}
 
@@ -1080,5 +1033,24 @@ void Hook_Game_Commit()
 			sub esp, 0x104
 		END_ASM(Hook_RequstAutoSave)
 	}
+
+	/*
+	.text:00A5D8AA                 mov     edi, 2000h
+	.text:00A5D8AF                 test    [ecx+10h], edi
+	.text:00A5D8B2                 jbe     short loc_A5D8C1
+	.text:00A5D8B4                 cmp     dword ptr [esi+0CCh], 0
+	.text:00A5D8BB                 jnz     loc_A5DA78
+	.text:00A5D8C1				   ; 300:             if ( (*(int (__stdcall **)(int))(*(_DWORD *)v39 + 16))(v5) != 1 )
+	.text:00A5D8C1
+	.text:00A5D8C1 loc_A5D8C1:     ; CODE XREF: sub_A5D370+542j
+	.text:00A5D8C1                 mov     edx, [ecx]
+	*/
+	//{
+	//	START_ASM(Hook_CanOpenMenu, 0x00A5D8AA, 0x00A5D8C1, 0);
+	//		pushad	
+
+	//		popad
+	//	END_ASM(Hook_CanOpenMenu);
+	//}
 }
 

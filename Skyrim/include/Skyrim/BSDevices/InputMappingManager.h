@@ -80,6 +80,8 @@ public:
 
 	UInt32 GetMappedKey(const BSFixedString &name, BSInputDevice::Type deviceType, ContextType contextIdx = kContext_Gameplay) const;
 	const BSFixedString & GetUserEventName(UInt32 buttonID, BSInputDevice::Type deviceType, ContextType contextIdx = kContext_Gameplay) const;
+	bool SetMappedKey(UInt32 buttonID, const BSFixedString &name, BSInputDevice::Type deviceType, ContextType contextIdx);
+	UInt32 GetUserEventFlag(UInt32 buttonID, BSInputDevice::Type deviceType, ContextType contextIdx) const;
 
 	inline bool IsLookingControlsEnabled() const	{ return (controlState & kControlState_Looking) == kControlState_Looking; }
 	inline bool IsFlyingControlsEnabled() const		{ return (controlState & kControlState_Flying) == kControlState_Flying; }
@@ -92,19 +94,18 @@ public:
 	BSTArray<UnkData>	unk78;							// 78
 	BSTArray<UInt32>	unk84;							// 84
 	SInt32				controlState;					// 90 - init'd -1
-	UInt32				unk94;							// 94 - init'd 0x80000000
+	UInt32				unk94;							// 94 - init'd 0x80000000  back up of controlState.
 	UInt8				unk98;							// 98 - init'd 0
 	UInt8				unk99;							// 99 - init'd 0
 	UInt8				unk9A;							// 9A - init'd 0
 
-	DEFINE_MEMBER_FN(DisableControl, void, 0x00A674D0, UInt32 context);  // 1 3 4 9 //A67260
-	DEFINE_MEMBER_FN(EnableControl, void, 0x00A67260, UInt32 context);
+	DEFINE_MEMBER_FN(DisableControl, void, 0x00A674D0, ContextType contextIdx);  // 1 3 4 9 //A67260
+	DEFINE_MEMBER_FN(EnableControl, void, 0x00A67260, ContextType contextIdx);
+	DEFINE_MEMBER_FN(DisableUserEvent, void, 0x00A67A30, UInt32 flags, bool unk1, bool unk2);
 
 private:
 	friend struct BSTSingletonSDMBase<BSTSDMTraits<InputMappingManager>>;
 	DEFINE_MEMBER_FN(ctor, InputMappingManager*, 0x00A68770);
-
-	DEFINE_MEMBER_FN(DisableUserEvent, void, 0x00A67A30, UInt32 flags, bool unk1, book unk2);
 
 };
 STATIC_ASSERT(offsetof(InputMappingManager, unk78) == 0x78);

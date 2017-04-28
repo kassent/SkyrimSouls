@@ -26,6 +26,32 @@ UInt32 InputMappingManager::GetMappedKey(const BSFixedString &name, BSInputDevic
 	return kInvalid;
 }
 
+bool InputMappingManager::SetMappedKey(UInt32 buttonID, const BSFixedString &name, BSInputDevice::Type deviceType, ContextType contextIdx)
+{
+	BSTArray<InputMapping::Data> * maps = nullptr;
+
+	if (deviceType == BSInputDevice::kType_Mouse)
+		maps = &mappings[contextIdx]->mouseMap;
+	else if (deviceType == BSInputDevice::kType_Gamepad)
+		maps = &mappings[contextIdx]->gamepadMap;
+	else if (deviceType == BSInputDevice::kType_Keyboard)
+		maps = &mappings[contextIdx]->keyboardMap;
+
+	if (maps)
+	{
+		for (InputMapping::Data &data : *maps)
+		{
+			if (data.name == name)
+			{
+				data.buttonID = buttonID;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+
 
 const BSFixedString & InputMappingManager::GetUserEventName(UInt32 buttonID, BSInputDevice::Type deviceType, ContextType contextIdx) const
 {
@@ -50,4 +76,27 @@ const BSFixedString & InputMappingManager::GetUserEventName(UInt32 buttonID, BSI
 	}
 
 	return none;
+}
+
+UInt32 InputMappingManager::GetUserEventFlag(UInt32 buttonID, BSInputDevice::Type deviceType, ContextType contextIdx) const
+{
+	BSTArray<InputMapping::Data> * maps = nullptr;
+
+	if (deviceType == BSInputDevice::kType_Mouse)
+		maps = &mappings[contextIdx]->mouseMap;
+	else if (deviceType == BSInputDevice::kType_Gamepad)
+		maps = &mappings[contextIdx]->gamepadMap;
+	else if (deviceType == BSInputDevice::kType_Keyboard)
+		maps = &mappings[contextIdx]->keyboardMap;
+
+	if (maps)
+	{
+		for (InputMapping::Data &data : *maps)
+		{
+			if (data.buttonID == buttonID)
+				return data.flags;
+		}
+	}
+
+	return 0;
 }

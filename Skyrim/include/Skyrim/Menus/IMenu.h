@@ -111,7 +111,7 @@ public:
 									//    -                                  ||  |||  |||+-------0010 Modal, Prevent Other Menu
 									//    -                                  ||  |||  ||+--------0020 Stop Drawing World
 									//    -                                  ||  |||  |+---------0040 Open
-									//    -                                  ||  |||  +----------0080 Prevent Game Load
+									//    -                                  ||  |||  +----------0080 Prevent Game Load //Allow Load Model
 									//    -                                  ||  ||+-------------0200 Hide Other Menu
 									//    -                                  ||  |+--------------0400 Mouse ?
 									//    -                                  ||  +---------------0800 Do Not Prevent Save Game
