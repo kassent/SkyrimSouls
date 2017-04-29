@@ -208,6 +208,33 @@ public:
 FavoritesHandler::FnCanProcess FavoritesHandler::fnCanProcess;
 
 
+
+static const UInt32 * g_TlsIndexPtr = (UInt32 *)0x01BBEB54;
+
+struct TLSData
+{
+	// thread local storage
+
+	UInt32	pad000[(0x4AC - 0x000) >> 2];   // 000
+	volatile UInt32	state;                  // 4AC
+};
+
+static TLSData * GetTLSData(void)
+{
+	UInt32 TlsIndex = *g_TlsIndexPtr;
+	TLSData * data = nullptr;
+
+	__asm {
+		mov		ecx, [TlsIndex]
+		mov		edx, fs:[2Ch]	// linear address of thread local storage array
+		mov		eax, [edx + ecx * 4]
+		mov[data], eax
+	}
+
+	return data;
+}
+
+#include <SKSE/HookUtil.h>
 //BookMenu
 //0x60
 class BookMenu : public IMenu,
@@ -215,6 +242,95 @@ class BookMenu : public IMenu,
 	public BSTEventSink<BSAnimationGraphEvent>
 {
 public:
+
+	class BookUpdater : public UIDelegate
+	{
+	public:
+		TES_FORMHEAP_REDEFINE_NEW();
+
+		void Run() override
+		{
+			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
+			if (mm->IsMenuOpen(stringHolder->bookMenu))
+			{
+				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+				if (settings.m_menuConfig[stringHolder->bookMenu.c_str()])
+				{
+					if (bookMenu->bookView->GetVariableDouble("BookMenu.BookMenuInstance.iPaginationIndex") != -1.00f) //CalculatePagination
+					{
+						//GFxValue result;
+						//bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0);
+						//UpdatePages
+						GFxValue result;
+						bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.UpdatePages", &result, nullptr, 0);
+						//GFxValue result;
+						//bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0);
+					}
+					else if ((bookMenu->flags & IMenu::kType_PauseGame) && mm->numPauseGame)
+					{
+						/*							mm->numPauseGame -= 1;
+						bookMenu->flags &= ~IMenu::kType_PauseGame;
+						_MESSAGE("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBbb");*/
+					}
+					//bookMenu->bookView->SetPause(false);
+					//bookMenu->CreateBookContent();
+					//bookMenu->bookView
+					//bookMenu->SetBookText();
+
+					//really_async(fn);
+					//auto fn = []()->bool {
+					//	UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+					//	MenuManager* mm = MenuManager::GetSingleton();
+					//	if (mm->IsMenuOpen(stringHolder->bookMenu))
+					//	{
+					//		BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+					//		if (settings.m_menuConfig[stringHolder->bookMenu.c_str()])
+					//		{
+					//			//bookMenu->bookView->SetPause(false);
+					//			//bookMenu->CreateBookContent();
+					//			//bookMenu->bookView
+					//			//bookMenu->SetBookText();
+					//			TLSData* tlsData = GetTLSData();
+					//			UInt32 oldState = tlsData->state;
+					//			tlsData->state = 0x43;
+					//			if (bookMenu->bookView->GetVariableDouble("BookMenu.BookMenuInstance.iPaginationIndex") != -1.00f) //CalculatePagination
+					//			{
+					//				GFxValue result;
+					//				bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0);
+					//			}
+					//			else if ((bookMenu->flags & IMenu::kType_PauseGame) && mm->numPauseGame)
+					//			{
+					//				mm->numPauseGame -= 1;
+					//				bookMenu->flags &= ~IMenu::kType_PauseGame;
+					//				_MESSAGE("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBbb");
+					//			}
+					//			tlsData->state = oldState;
+					//		}
+					//	}
+					//	return true;
+					//};
+					//really_async(fn);
+				}
+			}
+		}
+
+		void Dispose() override
+		{
+			delete this;
+		}
+
+		static void Register()
+		{
+			const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+			const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+			if (task)
+			{
+				BookUpdater *delg = new BookUpdater();
+				task->AddUITask(delg);
+			}
+		}
+	};
 
 	class TurnPageUpdater : public TaskDelegate
 	{
@@ -235,9 +351,16 @@ public:
 				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
 				if (bookMenu != nullptr)
 				{
+					bookMenu->bookView->SetPause(false);
+					GFxValue result;
+					bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0); //只能翻一页。
+					bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.UpdatePages", &result, nullptr, 0);
+					bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0); //只能翻一页。
+					bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.UpdatePages", &result, nullptr, 0);
 					bookMenu->TurnPage(m_direction);
 					if (bookMenu->flags & IMenu::kType_PauseGame)
 					{
+						bookMenu->bookView->SetPause(true);
 						mm->numPauseGame -= 1;
 						bookMenu->flags &= ~IMenu::kType_PauseGame;
 					}
@@ -285,7 +408,75 @@ public:
 		bool						m_direction;
 	};
 
+	class BookContentUpdater : public TaskDelegate
+	{
+	public:
+		BookContentUpdater() {}
 
+		virtual void Run() override
+		{
+			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
+			if (mm->IsMenuOpen(stringHolder->bookMenu))
+			{
+				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+				if (bookMenu != nullptr)
+				{
+					bookMenu->SetBookText();
+					if (bookMenu->flags & IMenu::kType_PauseGame)
+					{
+						mm->numPauseGame -= 1;
+						bookMenu->flags &= ~IMenu::kType_PauseGame;
+
+						if (!mm->numPauseGame)
+						{
+							static MenuModeChangeEvent event;
+							event.unk0 = 0;
+							event.menuMode = 0;
+
+							mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
+							typedef void(__fastcall * Fn)(void*, void*); //MenuModeChangeEvent
+							Fn fn = (Fn)0xA511B0;
+							fn(&event, nullptr);
+						}
+					}
+				}
+			}
+		}
+
+		virtual void Dispose() override
+		{
+			delete this;
+		}
+
+		static void Register()
+		{
+			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
+			if (mm->IsMenuOpen(stringHolder->bookMenu))
+			{
+				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+				if (bookMenu != nullptr)
+				{
+					bool(__cdecl* IsGameRuning)(bool mask) = (bool(__cdecl*)(bool mask))0x006F3570;
+					if (IsGameRuning(true) && !mm->numPauseGame && !(bookMenu->flags & IMenu::kType_PauseGame))
+					{
+						mm->numPauseGame += 1;
+						bookMenu->flags |= IMenu::kType_PauseGame;
+						const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+						const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+						if (task)
+						{
+							BookContentUpdater *delg = new BookContentUpdater();
+							task->AddTask(delg);
+						}
+					}
+				}
+			}
+		}
+	};
+
+	//view->Invoke("_root.Menu_mc.onExitMenuRectClick", &result, nullptr, 0);
 	class GlobalBookData
 	{
 	public:
@@ -317,12 +508,79 @@ public:
 	static bool enableCloseMenu;
 	static bool bSlowndownRefreshFreq;
 
+	class EndTurnPageUpdater : public TaskDelegate
+	{
+	public:
+		TES_FORMHEAP_REDEFINE_NEW();
+
+		EndTurnPageUpdater()
+		{
+
+		}
+
+		virtual void Run() override
+		{
+			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
+			if (mm->IsMenuOpen(stringHolder->bookMenu))
+			{
+				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+				if (bookMenu != nullptr)
+				{
+					bookMenu->bookView->SetPause(false);
+					GFxValue result;
+					bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0); //只能翻一页。
+					bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.UpdatePages", &result, nullptr, 0);
+					if (bookMenu->flags & IMenu::kType_PauseGame)
+					{
+						bookMenu->bookView->SetPause(true);
+						mm->numPauseGame -= 1;
+						bookMenu->flags &= ~IMenu::kType_PauseGame;
+					}
+				}
+			}
+		}
+
+		virtual void Dispose() override
+		{
+			delete this;
+		}
+
+		static void Queue()
+		{
+			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
+
+			if (mm->IsMenuOpen(stringHolder->bookMenu))
+			{
+				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+				if (bookMenu != nullptr)
+				{
+					bool(__cdecl* IsGameRuning)(bool mask) = (bool(__cdecl*)(bool mask))0x006F3570;
+					if (IsGameRuning(true) && !mm->numPauseGame && !(bookMenu->flags & IMenu::kType_PauseGame))
+					{
+						mm->numPauseGame += 1;
+						bookMenu->flags |= IMenu::kType_PauseGame;
+						const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+						const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+						if (task)
+						{
+							EndTurnPageUpdater *delg = new EndTurnPageUpdater();
+							task->AddTask(delg);
+						}
+					}
+				}
+			}
+		}
+	};
+
 	EventResult	ReceiveEvent_Hook(BSAnimationGraphEvent * evn, BSTEventSource<BSAnimationGraphEvent> * source)
 	{
 		EventResult result = (this->*fnReceiveEvent)(evn, source);
 		if (evn->animName == "PageBackStop" || evn->animName == "PageForwardStop" || evn->animName == "OpenStop")
 		{
-			bSlowndownRefreshFreq = false;
+			//bSlowndownRefreshFreq = false;
+			EndTurnPageUpdater::Queue();
 		}
 		return result;
 	}
@@ -375,103 +633,111 @@ public:
 			if (msg->type == UIMessage::kMessage_Open)
 			{
 				this->menuDepth = 4;
-				bSlowndownRefreshFreq = true;
+				//bSlowndownRefreshFreq = true;
 			}
 
-			if (msg->type == UIMessage::kMessage_Refresh)
-			{
-				if (this->refreshTimes > 5 && !*(bool*)0x1B3E5D4)
-				{
-					float(__fastcall* sub_844D60)(void*, void*) = (float(__fastcall*)(void*, void*))0x00844D60; //update *(bool)0x1B3E5D4;
-					sub_844D60((void*)0x1B3E580, nullptr);
+			//if (msg->type == UIMessage::kMessage_Refresh)
+			//{
+				//double iPaginationIndex = this->bookView->GetVariableDouble("iPaginationIndex");
+				//_MESSAGE("refreshTimes:%d    iPaginationIndex:%.2f", this->refreshTimes, iPaginationIndex);
 
-					if (!*(bool*)0x1B3E5D4)
-					{
-						float(__fastcall* sub_844FD0)(void*) = (float(__fastcall*)(void*))0x00844FD0;
-						float unk1 = sub_844FD0((void*)0x1B3E580);
+			//	if (this->refreshTimes > 5 && !*(bool*)0x1B3E5D4)
+			//	{
+			//		float(__fastcall* sub_844D60)(void*, void*) = (float(__fastcall*)(void*, void*))0x00844D60; //update *(bool)0x1B3E5D4;
+			//		sub_844D60((void*)0x1B3E580, nullptr);
 
-						void(__fastcall* sub_420630)(void*, void*, float) = (void(__fastcall*)(void*, void*, float))0x00420630;
-						sub_420630(this->unk3C, nullptr, unk1);
+			//		if (!*(bool*)0x1B3E5D4)
+			//		{
+			//			float(__fastcall* sub_844FD0)(void*) = (float(__fastcall*)(void*))0x00844FD0;
+			//			float unk1 = sub_844FD0((void*)0x1B3E580);
 
-						struct
-						{
-							float unk0;
-							float unk1;
-							float unk2;
-							float unk3;
-						} unk2;
+			//			void(__fastcall* sub_420630)(void*, void*, float) = (void(__fastcall*)(void*, void*, float))0x00420630;
+			//			sub_420630(this->unk3C, nullptr, unk1);
 
-						void(__fastcall* sub_844F60)(void*, void*, void*) = (void(__fastcall*)(void*, void*, void*))0x00844F60;
-						sub_844F60((void*)0x1B3E580, nullptr, &unk2);
+			//			struct
+			//			{
+			//				float unk0;
+			//				float unk1;
+			//				float unk2;
+			//				float unk3;
+			//			} unk2;
 
-						void(__fastcall* sub_4719A0)(void*, void*, void*) = (void(__fastcall*)(void*, void*, void*))0x004719A0;
-						sub_4719A0(&unk2, nullptr, &(this->unk3C->m_localTransform));
+			//			void(__fastcall* sub_844F60)(void*, void*, void*) = (void(__fastcall*)(void*, void*, void*))0x00844F60;
+			//			sub_844F60((void*)0x1B3E580, nullptr, &unk2);
 
-						NiPoint3 unk3;
-						void(__fastcall* sub_844ED0)(void*, void*, void*) = (void(__fastcall*)(void*, void*, void*))0x00844ED0;
-						sub_844ED0((void*)0x1B3E580, nullptr, &unk3);
+			//			void(__fastcall* sub_4719A0)(void*, void*, void*) = (void(__fastcall*)(void*, void*, void*))0x004719A0;
+			//			sub_4719A0(&unk2, nullptr, &(this->unk3C->m_localTransform));
 
-						if (this->isNote)
-						{
-							this->unk3C->m_localTransform.pos = unk3;
-						}
-						else
-						{
-							NiPoint3 unk4;
-							NiPoint3*(__fastcall* sub_420360)(void*, void*, void*, void*) = (NiPoint3*(__fastcall*)(void*, void*, void*, void*))0x00420360;
-							NiPoint3* unk5 = sub_420360(&this->unk3C->m_unkPoint, nullptr, &unk4, &this->unk3C->m_localTransform.pos);
+			//			NiPoint3 unk3;
+			//			void(__fastcall* sub_844ED0)(void*, void*, void*) = (void(__fastcall*)(void*, void*, void*))0x00844ED0;
+			//			sub_844ED0((void*)0x1B3E580, nullptr, &unk3);
 
-							float(__fastcall* sub_844F80)(void*) = (float(__fastcall*)(void*))0x00844F80;
-							float unk6 = sub_844F80((void*)0x1B3E580);
+			//			if (this->isNote)
+			//			{
+			//				this->unk3C->m_localTransform.pos = unk3;
+			//			}
+			//			else
+			//			{
+			//				NiPoint3 unk4;
+			//				NiPoint3*(__fastcall* sub_420360)(void*, void*, void*, void*) = (NiPoint3*(__fastcall*)(void*, void*, void*, void*))0x00420360;
+			//				NiPoint3* unk5 = sub_420360(&this->unk3C->m_unkPoint, nullptr, &unk4, &this->unk3C->m_localTransform.pos);
 
-							NiPoint3 unk7;
+			//				float(__fastcall* sub_844F80)(void*) = (float(__fastcall*)(void*))0x00844F80;
+			//				float unk6 = sub_844F80((void*)0x1B3E580);
 
-							NiPoint3*(__cdecl* sub_420430)(void*, float, void*) = (NiPoint3*(__cdecl*)(void*, float, void*))0x00420430;
-							NiPoint3* var5 = sub_420430(&unk7, unk6, unk5);
+			//				NiPoint3 unk7;
 
-							NiPoint3 unk8;
+			//				NiPoint3*(__cdecl* sub_420430)(void*, float, void*) = (NiPoint3*(__cdecl*)(void*, float, void*))0x00420430;
+			//				NiPoint3* var5 = sub_420430(&unk7, unk6, unk5);
 
-							NiPoint3* unk9 = sub_420360(&unk3, nullptr, &unk8, var5);
+			//				NiPoint3 unk8;
 
-							this->unk3C->m_localTransform.pos = *unk9;
-						}
+			//				NiPoint3* unk9 = sub_420360(&unk3, nullptr, &unk8, var5);
 
-						void(__fastcall* sub_6504A0)(void*, void*, void*) = (void(__fastcall*)(void*, void*, void*))0x006504A0;
-						sub_6504A0((char*)this + 0x1C, nullptr, *(void**)0x1B4ADE0);
+			//				this->unk3C->m_localTransform.pos = *unk9;
+			//			}
 
-						if (this->refreshTimes == 6)
-						{
-							if (holder && mm && mm->IsMenuOpen(holder->bookMenu) && (this->flags & IMenu::kType_PauseGame) == IMenu::kType_PauseGame && mm->numPauseGame)
-							{
-								mm->numPauseGame -= 1;
-								this->flags &= ~IMenu::kType_PauseGame;
-								if (!mm->numPauseGame)
-								{
-									static MenuModeChangeEvent event;
-									event.unk0 = 0;
-									event.menuMode = 0;
+			//			void(__fastcall* sub_6504A0)(void*, void*, void*) = (void(__fastcall*)(void*, void*, void*))0x006504A0;
+			//			sub_6504A0((char*)this + 0x1C, nullptr, *(void**)0x1B4ADE0);
 
-									mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
-									typedef void(__fastcall * Fn)(void*, void*); //MenuModeChangeEvent
-									Fn fn = (Fn)0xA511B0;
-									fn(&event, nullptr);
-								}
-							}
-							this->refreshTimes += 1;
-						}
-					}
+			//			if (this->refreshTimes < 8)
+			//			{
+			//				this->refreshTimes += 1;
+			//				//mm->numPauseGame += 1;
+			//			}
+			//			else if (this->refreshTimes == 8)
+			//			{
+			//				if (holder && mm && mm->IsMenuOpen(holder->bookMenu) && (this->flags & IMenu::kType_PauseGame) == IMenu::kType_PauseGame && mm->numPauseGame)
+			//				{
+			//					//mm->numPauseGame -= 1;
+			//					//this->flags &= ~IMenu::kType_PauseGame;
+			//					//if (!mm->numPauseGame)
+			//					//{
+			//					//	static MenuModeChangeEvent event;
+			//					//	event.unk0 = 0;
+			//					//	event.menuMode = 0;
 
-					if (bSlowndownRefreshFreq)
-						Sleep(settings.m_waitTime);  //Slow down the refresh frequency, otherwise updating maybe cause CTD.
+			//					//	mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
+			//					//	typedef void(__fastcall * Fn)(void*, void*); //MenuModeChangeEvent
+			//					//	Fn fn = (Fn)0xA511B0;
+			//					//	fn(&event, nullptr);
+			//					//}
+			//				}
+			//				this->refreshTimes += 1;
+			//			}
+			//		}
 
-					static NiAVObject::ControllerUpdateContext ctx;
-					ctx.delta = 0.0f;
-					ctx.flags = 0;
-					this->unk3C->UpdateNode(&ctx);
+			//		//if (bSlowndownRefreshFreq)
+			//		//	Sleep(settings.m_waitTime);  //Slow down the refresh frequency, otherwise updating maybe cause CTD.
 
-					return 0;
-				}
-			}
+			//		static NiAVObject::ControllerUpdateContext ctx;
+			//		ctx.delta = 0.0f;
+			//		ctx.flags = 0;
+			//		this->unk3C->UpdateNode(&ctx);
+
+			//		return 0;
+			//	}
+			//}
 
 			if (msg->type == UIMessage::kMessage_Message)
 			{
@@ -543,11 +809,158 @@ public:
 		}
 	}
 
+
+
+	void SetBookText_Hook()
+	{
+		bool(__cdecl* IsGameRuning)(bool mask) = (bool(__cdecl*)(bool mask))0x006F3570;
+		if (!IsGameRuning(true))
+		{
+
+	
+
+			//UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+			//if (settings.m_menuConfig[stringHolder->bookMenu.c_str()])
+			//{
+			//	if (this->bookView != nullptr)
+			//	{
+			//		this->bookView->SetPause(true);
+			//		MenuManager* mm = MenuManager::GetSingleton();
+			//		mm->numPauseGame -= 1;
+			//		this->flags &= ~IMenu::kType_PauseGame;
+			//		BookUpdater::Register();
+			//	}
+			//}
+
+
+			this->SetBookText();
+
+			//GFxValue result;
+			//GFxValue args[2];
+			//args[0].SetString("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
+			//args[1].SetBoolean(false);
+			//this->bookView->Invoke("BookMenu.BookMenuInstance.SetBookText", &result, args, 2);//SetBookText
+
+			auto updater = []()->bool {
+				UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+				MenuManager* mm = MenuManager::GetSingleton();
+				if (mm->IsMenuOpen(stringHolder->bookMenu))
+				{
+					BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+					if (bookMenu != nullptr)
+					{
+						if (bookMenu->flags & IMenu::kType_PauseGame)
+						{
+							UInt32 i = 0;
+							while (i < 10)
+							{
+								BookUpdater::Register();
+								std::this_thread::sleep_for(std::chrono::milliseconds(15));
+								i++;
+							}
+							//auto fn = [=]()->bool {
+							//	GFxValue result;
+							//	bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0);
+							//	return true;
+							//};
+							//really_async(fn);
+							//std::this_thread::sleep_for(std::chrono::milliseconds(15));
+							//really_async(fn);
+							//std::this_thread::sleep_for(std::chrono::milliseconds(15));
+							//really_async(fn);
+							//std::this_thread::sleep_for(std::chrono::milliseconds(15));
+							//really_async(fn);
+							//std::this_thread::sleep_for(std::chrono::milliseconds(15));
+							//really_async(fn);
+							//std::this_thread::sleep_for(std::chrono::milliseconds(200));
+							bookMenu->bookView->SetPause(true);
+							//std::this_thread::sleep_for(std::chrono::milliseconds(50));
+							mm->numPauseGame -= 1;
+							bookMenu->flags &= ~IMenu::kType_PauseGame;
+						}
+					}
+				}
+				return true;
+			};
+			really_async(updater);
+		}
+		else
+		{
+			this->SetBookText();
+		}
+	}
+
+	void CreateBookLayout_Hook()
+	{
+		class BookUpdater : public TaskDelegate
+		{
+		public:
+			TES_FORMHEAP_REDEFINE_NEW();
+
+			void Run() override
+			{
+				UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+				MenuManager* mm = MenuManager::GetSingleton();
+				if (mm->IsMenuOpen(stringHolder->bookMenu))
+				{
+					BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
+					if (settings.m_menuConfig[stringHolder->bookMenu.c_str()])
+					{
+						//bookMenu->bookView->SetPause(false);
+						//bookMenu->CreateBookContent();
+						//bookMenu->bookView
+						//bookMenu->SetBookText();
+						bookMenu->CreateBookLayout();
+						mm->numPauseGame -= 1;
+						bookMenu->flags &= ~IMenu::kType_PauseGame;
+					}
+				}
+			}
+
+			void Dispose() override
+			{
+				delete this;
+			}
+
+			static void Register()
+			{
+				const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+				const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+				if (task)
+				{
+					BookUpdater *delg = new BookUpdater();
+					task->AddTask(delg);
+				}
+			}
+		};
+
+
+		MenuManager* mm = MenuManager::GetSingleton();
+		mm->numPauseGame += 1;
+		this->flags |= IMenu::kType_PauseGame;
+		BookUpdater::Register();
+	}
+
 	static void InitHook()
 	{
 		fnProcessMessage = SafeWrite32(0x010E3AA4 + 0x04 * 4, &ProcessMessage_Hook);
 
-		fnReceiveEvent = SafeWrite32(0x010E3A98 + 0x01 * 4, &ReceiveEvent_Hook);
+		//fnReceiveEvent = SafeWrite32(0x010E3A98 + 0x01 * 4, &ReceiveEvent_Hook);
+
+		WriteRelCall(0x008464AC, GetFnAddr(&BookMenu::SetBookText_Hook));
+
+		//WriteRelCall(0x008466D0, GetFnAddr(&BookMenu::CreateBookLayout_Hook));
+
+		//SafeWrite8(0x008466AB, 0x00);
+
+		//SafeWrite8(0x008455E8, 0x00);
+		/*
+		.text:008466CE                 mov     ecx, ebx
+		.text:008466D0                 call    sub_845F70
+		.text:008466D5 ; 104:     if ( *(_DWORD *)(v3 + 0x3C) )
+		.text:008466D5
+		.text:008466D5 loc_8466D5:                             ; CODE XREF: sub_846680+41j
+		*/
 	}
 
 	//members:
@@ -571,7 +984,8 @@ public:
 
 	DEFINE_MEMBER_FN(InitBookMenu, void, 0x008451C0);
 	//DEFINE_MEMBER_FN(CreateBookContent, void, 0x00845D60);
-	DEFINE_MEMBER_FN(CreateBookContent, void, 0x00845F70);
+	DEFINE_MEMBER_FN(CreateBookLayout, void, 0x00845F70);
+	DEFINE_MEMBER_FN(SetBookText, void, 0x00845D60);
 
 };
 static_assert(sizeof(BookMenu) == 0x60, "BookMenu");
@@ -1027,7 +1441,7 @@ void RegisterEventHandler()
 	Setting* setting = GetINISetting("fBookOpenTime");
 	if (setting != nullptr)
 	{
-		setting->SetDouble(1000.0);
+		setting->SetDouble(400.0);
 	}
 }
 
