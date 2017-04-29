@@ -236,7 +236,7 @@ public:
 				if (bookMenu != nullptr)
 				{
 					bookMenu->TurnPage(m_direction);
-					if (mm->numPauseGame && (bookMenu->flags & IMenu::kType_PauseGame))
+					if (bookMenu->flags & IMenu::kType_PauseGame)
 					{
 						mm->numPauseGame -= 1;
 						bookMenu->flags &= ~IMenu::kType_PauseGame;
@@ -260,11 +260,12 @@ public:
 				BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
 				if (bookMenu != nullptr)
 				{
-					if (mm->numPauseGame)
+					bool(__cdecl* IsGameRuning)(bool mask) = (bool(__cdecl*)(bool mask))0x006F3570;
+					if (!IsGameRuning(true))
 					{
 						bookMenu->TurnPage(direction);
 					}
-					else
+					else if(!mm->numPauseGame && !(bookMenu->flags & IMenu::kType_PauseGame))
 					{
 						mm->numPauseGame += 1;
 						bookMenu->flags |= IMenu::kType_PauseGame;
