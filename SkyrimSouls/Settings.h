@@ -34,14 +34,10 @@ struct Settings
 		//Sleep/Wait Menu
 		m_menuConfig["CustomMenu"] = 1;
 		m_waitTime = 30;
-		m_disableTime = 30;
-		m_delayTime = 50;
 	}
 
 	std::map<std::string, int>		m_menuConfig;
 	int								m_waitTime;
-	int								m_delayTime;
-	int								m_disableTime;
 
 	bool Set(const char *name, int val);
 	void Eval(const char *line);

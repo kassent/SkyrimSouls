@@ -77,14 +77,6 @@ bool Settings::Set(const char *name, int val)
 	{
 		m_waitTime = val;
 	}
-	else if (_stricmp(name, "DisableTime") == 0)
-	{
-		m_disableTime = val;
-	}
-	else if (_stricmp(name, "DelayTime") == 0)
-	{
-		m_delayTime = val;
-	}
 	else
 	{
 		return false;
