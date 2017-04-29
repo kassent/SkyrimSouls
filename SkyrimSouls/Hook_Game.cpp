@@ -535,6 +535,10 @@ public:
 		}
 		else
 		{
+			if (msg->type == UIMessage::kMessage_Open)
+			{
+				this->menuDepth = 4;
+			}
 			return (this->*fnProcessMessage)(msg);
 		}
 	}
@@ -1023,7 +1027,7 @@ void RegisterEventHandler()
 	Setting* setting = GetINISetting("fBookOpenTime");
 	if (setting != nullptr)
 	{
-		setting->SetDouble(1200.0);
+		setting->SetDouble(1000.0);
 	}
 }
 
