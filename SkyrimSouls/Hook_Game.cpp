@@ -160,6 +160,8 @@ void STDFN Hook_KillActor(Actor* actor)
 		}
 		if (isProcessing) Sleep(200);
 	}
+	//MenuControls* menuControls = MenuControls::GetSingleton();
+	//menuControls->CloseAllMenus();
 }
 
 bool STDFN Hook_IsInMenuMode()

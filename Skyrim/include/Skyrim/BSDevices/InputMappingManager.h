@@ -101,7 +101,8 @@ public:
 
 	DEFINE_MEMBER_FN(DisableControl, void, 0x00A674D0, ContextType contextIdx);  // 1 3 4 9 //A67260
 	DEFINE_MEMBER_FN(EnableControl, void, 0x00A67260, ContextType contextIdx);
-	DEFINE_MEMBER_FN(DisableUserEvent, void, 0x00A67A30, UInt32 flags, bool unk1, bool unk2);
+	DEFINE_MEMBER_FN(DisableUserEvent, void, 0x00A67A30, UInt32 flags, bool unk1, bool unk2); // 0 1 ½ûÓÃ
+
 
 private:
 	friend struct BSTSingletonSDMBase<BSTSDMTraits<InputMappingManager>>;

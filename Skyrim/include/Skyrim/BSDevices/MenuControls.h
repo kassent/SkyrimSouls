@@ -57,6 +57,8 @@ public:
 	bool						remapMode;		// 42
 	UInt8						pad43;			// 43
 
+	DEFINE_MEMBER_FN(CloseAllMenus, void, 0x00878C10);
+
 private:
 	friend struct BSTSingletonSDMBase<BSTSDMTraits<MenuControls>>;
 	DEFINE_MEMBER_FN(ctor, MenuControls *, 0x0087A120);
