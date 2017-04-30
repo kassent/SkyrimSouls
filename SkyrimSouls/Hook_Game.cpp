@@ -474,7 +474,7 @@ public:
 								event.menuMode = 0;
 
 								mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
-								typedef void(__fastcall * Fn)(void*, void*); //MenuModeChangeEvent
+								typedef void(__fastcall * Fn)(void*, void*); 
 								Fn ReleaseObject = (Fn)0xA511B0;
 								ReleaseObject(&event, nullptr);
 							}
@@ -483,16 +483,11 @@ public:
 				}
 				return true;
 			};
-
 			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
 			if (settings.m_menuConfig[stringHolder->bookMenu.c_str()])
 			{
 				really_async(fn);
 			}
-		}
-		else
-		{
-			this->SetBookText();
 		}
 	}
 
