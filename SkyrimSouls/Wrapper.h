@@ -20,7 +20,8 @@ public:
 		if (it != menuTable->end())
 		{
 			m_ctor = it->value.menuConstructor;
-			_MESSAGE("Wrapper<%s>::Register()		ctor: %p", N.c_str(), m_ctor);
+			//_MESSAGE("Wrapper<%s>::Register()		ctor: %p", N.c_str(), m_ctor);
+			_MESSAGE("Wrapper<%s>::Register()", N.c_str());
 			it->value.menuConstructor = CreateIMenu;
 			return true;
 		}
