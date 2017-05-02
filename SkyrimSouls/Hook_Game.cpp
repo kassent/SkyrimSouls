@@ -997,7 +997,7 @@ void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 		GFxValue value(args[i]);
 		BGSSaveLoadManager* saveLoadManager = BGSSaveLoadManager::GetSingleton();
 		GFxValue arg;
-		if (i == 1) //Load
+		if (i == 1 || i == 4) //Load Quit
 		{
 			arg.SetBoolean(false);
 		}
@@ -1018,57 +1018,6 @@ void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 	}
 }
 
-
-//#include <Skyrim/SkyrimVM.h>
-//
-//void LookUpWaitArray()
-//{
-//	//make it thread safe.
-//	struct WaitInfo
-//	{
-//		UInt32				endTime; //修改最高位Flag。
-//		UInt32			    stackID;
-//		VMState*			vmState;
-//	};
-//
-//	BSTArray<WaitInfo>* waitArray = (BSTArray<WaitInfo>*)((char*)(g_skyrimVM) + 0x430);
-//	static UInt32& runningTime = *(UInt32*)((char*)(g_skyrimVM)+0x41C);
-//	for (auto waitInfo : *waitArray)
-//	{
-//		_MESSAGE("runningTime: %08X    waitTime: %08X    statckID: %d    vmState: %p", runningTime, waitInfo.endTime, waitInfo.stackID, waitInfo.vmState);
-//	}
-//	static bool startThread = false;
-//	if (!startThread)
-//	{
-//		startThread = true;
-//		auto fn = []()->bool {
-//			while (1)
-//			{
-//				static UInt32& runningTime = *(UInt32*)((char*)(g_skyrimVM)+0x41C);
-//				_MESSAGE("runtime: %08X", runningTime);
-//				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-//			}
-//			return true;
-//		};
-//		really_async(fn);
-//	}
-//	//_MESSAGE("runningTime: %d
-//}
-//
-//bool Hook_Wait(void* unk0, void* unk1, void* unk2, float time)
-//{
-//	typedef bool(__fastcall* Fn)(void*, void*, float, void*, void*);
-//	Fn fn = (Fn)0x008D05F0; 
-//	MenuManager* mm = MenuManager::GetSingleton();
-//	_MESSAGE("LookUp:");
-//	//while (time > 0.0f && mm->IsInMenuMode())
-//	//{
-//	//	fn(*(void**)0x12E568C, nullptr, 0.1f,  unk1, unk0);
-//	//}
-//	fn(*(void**)0x12E568C, nullptr, time, unk1, unk0);
-//	LookUpWaitArray();
-//	return true;
-//}
 
 void RegisterEventHandler()
 {
