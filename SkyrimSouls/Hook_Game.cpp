@@ -463,7 +463,7 @@ public:
 					BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
 					if (bookMenu != nullptr && (bookMenu->flags & IMenu::kType_PauseGame))
 					{
-						std::this_thread::sleep_for(std::chrono::milliseconds(100));
+						std::this_thread::sleep_for(std::chrono::milliseconds(150));
 						if (mm->numPauseGame)
 						{
 							bookMenu->bookView->SetPause(true);
@@ -1019,6 +1019,57 @@ void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 }
 
 
+//#include <Skyrim/SkyrimVM.h>
+//
+//void LookUpWaitArray()
+//{
+//	//make it thread safe.
+//	struct WaitInfo
+//	{
+//		UInt32				endTime; //修改最高位Flag。
+//		UInt32			    stackID;
+//		VMState*			vmState;
+//	};
+//
+//	BSTArray<WaitInfo>* waitArray = (BSTArray<WaitInfo>*)((char*)(g_skyrimVM) + 0x430);
+//	static UInt32& runningTime = *(UInt32*)((char*)(g_skyrimVM)+0x41C);
+//	for (auto waitInfo : *waitArray)
+//	{
+//		_MESSAGE("runningTime: %08X    waitTime: %08X    statckID: %d    vmState: %p", runningTime, waitInfo.endTime, waitInfo.stackID, waitInfo.vmState);
+//	}
+//	static bool startThread = false;
+//	if (!startThread)
+//	{
+//		startThread = true;
+//		auto fn = []()->bool {
+//			while (1)
+//			{
+//				static UInt32& runningTime = *(UInt32*)((char*)(g_skyrimVM)+0x41C);
+//				_MESSAGE("runtime: %08X", runningTime);
+//				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//			}
+//			return true;
+//		};
+//		really_async(fn);
+//	}
+//	//_MESSAGE("runningTime: %d
+//}
+//
+//bool Hook_Wait(void* unk0, void* unk1, void* unk2, float time)
+//{
+//	typedef bool(__fastcall* Fn)(void*, void*, float, void*, void*);
+//	Fn fn = (Fn)0x008D05F0; 
+//	MenuManager* mm = MenuManager::GetSingleton();
+//	_MESSAGE("LookUp:");
+//	//while (time > 0.0f && mm->IsInMenuMode())
+//	//{
+//	//	fn(*(void**)0x12E568C, nullptr, 0.1f,  unk1, unk0);
+//	//}
+//	fn(*(void**)0x12E568C, nullptr, time, unk1, unk0);
+//	LookUpWaitArray();
+//	return true;
+//}
+
 void RegisterEventHandler()
 {
 	MenuManager* mm = MenuManager::GetSingleton();
@@ -1065,6 +1116,9 @@ void Hook_Game_Commit()
 
 	//Redefine papyrus function: Utility.IsInMenuMode()
 	WriteRelJump(0x00918D90, (UInt32)Hook_IsInMenuMode);
+
+	//WriteRelJump(0x00919190, (UInt32)Hook_Wait);
+	//SafeWrite32(0x009199BF, (UInt32)Hook_Wait);
 
 	{
 		static const UInt32 kHook_GetFavoritesSpell_Jmp = 0x85BA03;
@@ -1138,6 +1192,24 @@ void Hook_Game_Commit()
 			pop ecx
 			sub esp, 0x104
 		END_ASM(Hook_RequstAutoSave)
+	}
+	//Beta...
+	{
+		static const UInt32 kHook_DisableTimeUpdate_Jmp = 0x008D41F8;
+
+		START_ASM(Hook_VMUpdateTime, 0x008D41E9, 0x008D41F2, 1);		
+			push eax
+			mov eax, 0x01B2E85E
+			movzx eax, byte ptr [eax]
+			cmp eax, 0
+			pop eax
+			jnz DisableUpdate
+			cmp MenuOpenCloseEventHandler::unpausedCount, 0
+			jnz DisableUpdate
+			JMP_ASM(Hook_VMUpdateTime)
+			DisableUpdate:
+			jmp [kHook_DisableTimeUpdate_Jmp]	
+		END_ASM(Hook_VMUpdateTime)
 	}
 }
 
