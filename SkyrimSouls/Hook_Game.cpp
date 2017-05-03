@@ -189,26 +189,131 @@ bool STDFN Hook_AddUIMessage(const BSFixedString& strData, UInt32 msgID)
 }
 
 
-class FavoritesHandler : public MenuEventHandler
+class PlayerEquipemntUpdater : public TaskDelegate
 {
 public:
-	typedef bool(FavoritesHandler::*FnCanProcess)(InputEvent *);
+	TES_FORMHEAP_REDEFINE_NEW();
 
-	static FnCanProcess fnCanProcess;
-
-	bool CanProcess_Hook(InputEvent *evn)
+	void Run() override
 	{
-		return (this->*fnCanProcess)(evn);
+		g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+	}
+	void Dispose() override
+	{
+		delete this;
+	}
+	static void Register()
+	{
+		const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+		const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+		if (task)
+		{
+			PlayerEquipemntUpdater *delg = new PlayerEquipemntUpdater();
+			task->AddTask(delg);
+		}
+	}
+};
+
+
+class FavoritesMenu : public IMenu,
+					  public MenuEventHandler
+{
+public:
+
+	struct ItemData
+	{
+		TESForm*				form;
+		InventoryEntryData*	    objDesc;
+	};
+
+	struct EquipManager
+	{
+		static EquipManager * GetSingleton(void)
+		{
+			return *((EquipManager **)0x012E5FAC);
+		}
+		DEFINE_MEMBER_FN(EquipSpell, void, 0x006EFAC0, Actor * actor, TESForm * item, BGSEquipSlot* slot);
+		DEFINE_MEMBER_FN(EquipShout, void, 0x006F0110, Actor * actor, TESForm * item);
+		DEFINE_MEMBER_FN(EquipItem, void, 0x006EF820, Actor * actor, InventoryEntryData* unk0, BGSEquipSlot* slot, bool unk1);
+	};
+
+	void EquipItem(BGSEquipSlot* slot)
+	{
+		GFxMovieView* view = this->GetMovieView();
+		GFxValue result;
+		view->Invoke("_root.GetSelectedIndex", &result, nullptr, 0);
+
+		if (result.GetType() == GFxValue::ValueType::VT_Number && result.GetNumber() != -1.00f)
+		{
+			if (this->unk40 && unk38 != nullptr)
+			{
+				UInt32 index = static_cast<UInt32>(result.GetNumber());
+				TESForm* form = unk38[index].form;
+				if (form != nullptr)
+				{
+					if (form->formType == FormType::Spell)
+					{
+						EquipManager::GetSingleton()->EquipSpell(g_thePlayer, form, slot);
+					}
+					else if (form->formType == FormType::Shout)
+					{
+						if (!g_thePlayer->IsEquipShoutDisabled())
+						{
+							EquipManager::GetSingleton()->EquipShout(g_thePlayer, form);
+						}
+					}
+					else
+					{
+						InventoryEntryData* objDesc = unk38[index].objDesc;
+						EquipManager::GetSingleton()->EquipItem(g_thePlayer, objDesc, slot, true);
+						if (g_thePlayer->processManager != nullptr)
+						{
+							PlayerEquipemntUpdater::Register();
+							//g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+							if (form->formType == FormType::Armor)
+							{
+								void* unk1 = g_thePlayer->sub_4D6630();
+								void* unk2 = ((void* (__cdecl*)(TESForm*))0x447CA0)(form);
+								bool(__fastcall* sub_447C20)(void*, void*, void*) = (bool(__fastcall*)(void*, void*, void*))0x00447C20;
+								if (sub_447C20(unk2, nullptr, unk1))
+								{
+									g_thePlayer->sub_73D9A0();
+								}
+							}
+						}
+					}
+					((void(__cdecl*)(char*))0x00899620)("UIFavorite");
+					this->unk45 = true;
+					((void(__cdecl*)(Actor*, bool))0x00897F90)(g_thePlayer, false);
+				}
+			}
+		}
+		if ((result.GetType() >> 6) & 1)
+		{
+			result.pObjectInterface->ObjectRelease(&result, result.Value.pData);
+		}
 	}
 
 	static void InitHook()
 	{
 		SafeWrite8(0x0085BE1D, 0x00);
-		//fnCanProcess = SafeWrite32(0x010E4DFC + 0x01 * 4, &CanProcess_Hook);
+		WriteRelJump(0x0085B5E0, GetFnAddr(&FavoritesMenu::EquipItem));
 	}
-};
 
-FavoritesHandler::FnCanProcess FavoritesHandler::fnCanProcess;
+	UInt32						unk28;
+	UInt32						unk2C;
+	UInt32						unk30;
+	UInt32						unk34;
+	ItemData*					unk38;
+	UInt32						unk3C;
+	UInt32						unk40;
+	bool						unk44;
+	bool						unk45;
+	//
+	// ....
+};
+static_assert(sizeof(FavoritesMenu) == 0x48, "sizeof(FavoritesMenu) != 0x48");
+
 
 
 
@@ -538,6 +643,8 @@ BookMenu::FnProcessMessage	BookMenu::fnProcessMessage = nullptr;
 BookMenu::FnReceiveEvent	BookMenu::fnReceiveEvent = nullptr;
 
 
+
+
 class LockpickingMenu : public IMenu
 {
 public:
@@ -835,30 +942,6 @@ void UICallBack_DropItem(FxDelegateArgs* pargs)
 
 					inventory->inventoryData->Update(g_thePlayer);
 
-					class PlayerEquipemntUpdater : public TaskDelegate
-					{
-					public:
-						TES_FORMHEAP_REDEFINE_NEW();
-
-						void Run() override
-						{
-							g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
-						}
-						void Dispose() override
-						{
-							delete this;
-						}
-						static void Register()
-						{
-							const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
-							const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
-							if (task)
-							{
-								PlayerEquipemntUpdater *delg = new PlayerEquipemntUpdater();
-								task->AddTask(delg);
-							}
-						}
-					};
 					//PlayerCamera* camera = PlayerCamera::GetSingleton();
 					if (inventory->flags & IMenu::kType_PauseGame/* || camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free]*/)
 					{
@@ -915,30 +998,7 @@ void UICallBack_SelectItem(FxDelegateArgs* pargs)
 	{
 		EquipItem(inventory, nullptr, nullptr);
 	}
-	class PlayerEquipemntUpdater : public TaskDelegate
-	{
-	public:
-		TES_FORMHEAP_REDEFINE_NEW();
 
-		void Run() override
-		{
-			g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
-		}
-		void Dispose() override
-		{
-			delete this;
-		}
-		static void Register()
-		{
-			const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
-			const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
-			if (task)
-			{
-				PlayerEquipemntUpdater *delg = new PlayerEquipemntUpdater();
-				task->AddTask(delg);
-			}
-		}
-	};
 	if (inventory->flags & IMenu::kType_PauseGame/* || camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free]*/)
 	{
 		g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
@@ -1019,6 +1079,7 @@ void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 }
 
 
+
 void RegisterEventHandler()
 {
 	MenuManager* mm = MenuManager::GetSingleton();
@@ -1033,7 +1094,7 @@ void RegisterEventHandler()
 void Hook_Game_Commit()
 {
 
-	FavoritesHandler::InitHook();
+	FavoritesMenu::InitHook();
 	BookMenu::InitHook();
 	LockpickingMenu::InitHook();
 	InventoryMenuEx::InitHook();
@@ -1065,9 +1126,6 @@ void Hook_Game_Commit()
 
 	//Redefine papyrus function: Utility.IsInMenuMode()
 	WriteRelJump(0x00918D90, (UInt32)Hook_IsInMenuMode);
-
-	//WriteRelJump(0x00919190, (UInt32)Hook_Wait);
-	//SafeWrite32(0x009199BF, (UInt32)Hook_Wait);
 
 	{
 		static const UInt32 kHook_GetFavoritesSpell_Jmp = 0x85BA03;

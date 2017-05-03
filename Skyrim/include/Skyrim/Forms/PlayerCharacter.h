@@ -228,6 +228,14 @@ public:
 	DEFINE_MEMBER_FN(OnCrosshairRefChanged, void, 0x00739FD0);		// called from 0074F855
 	DEFINE_MEMBER_FN(GetActorInFavorState, Actor*, 0x0073D4B0);
 
+
+	DEFINE_MEMBER_FN(sub_4D6630, void*, 0x004D6630);
+
+	DEFINE_MEMBER_FN(sub_73D9A0, void, 0x0073D9A0);
+	/*
+	.text:0085B6C1                 mov     ecx, dword_1B2E8E4
+.text:0085B6C7                 call    sub_4D6630
+	*/
 	// @members
 	UInt32		pad238[(0x42C - 0x238) >> 2];	// 238
 	TESFaction	* crimeFaction;					// 42C

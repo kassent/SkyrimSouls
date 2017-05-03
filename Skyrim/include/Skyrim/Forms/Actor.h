@@ -358,6 +358,8 @@ public:
 	DEFINE_MEMBER_FN(GetVoiceRecoveryTime, float, 0x006E8AE0);
 	DEFINE_MEMBER_FN(SetVoiceRecoveryTime, void, 0x006E8B10, float time);
 
+	DEFINE_MEMBER_FN(IsEquipShoutDisabled, bool, 0x006E8AA0);
+
 	DEFINE_MEMBER_FN(Kill, void, 0x006AC3A0, Actor* killer, UInt32 unk0, UInt32 unk1, UInt32 unk2);
  //6E8B10
 	///<summary>Checks to see if this actor has the given Shout.</summary>
