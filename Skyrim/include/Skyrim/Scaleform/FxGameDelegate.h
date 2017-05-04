@@ -61,8 +61,8 @@ public:
 class FxDelegateArgs
 {
 public:
-	FxDelegateArgs();
-	~FxDelegateArgs();
+	//FxDelegateArgs(){}
+	//~FxDelegateArgs(){}
 
 	GFxValue			responseID;
 	FxDelegateHandler	* pThisMenu;

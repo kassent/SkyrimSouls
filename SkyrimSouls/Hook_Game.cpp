@@ -70,9 +70,26 @@ public:
 					PlayerControls* control = PlayerControls::GetSingleton();
 					for (auto element : control->handlers)
 					{
+						//_MESSAGE("handleName: %s", GetObjectClassName(element));
 						*((UInt32*)element + 1) = false;
 					}
+					//*((UInt32*)control->lookHandler + 1) = true;
 				}
+				//if (evn->menuName == holder->inventoryMenu)
+				//{
+				//	//handleName: struct LookHandler
+				//	InputMappingManager* input = InputMappingManager::GetSingleton();
+				//	input->DisableControl(InputMappingManager::ContextType::kContext_ItemMenu);
+				//	input->EnableControl(InputMappingManager::ContextType::kContext_Gameplay);
+				//}
+				//if (evn->menuName == holder->sleepWaitMenu)
+				//{
+					//handleName: struct LookHandler
+					//InputMappingManager* input = InputMappingManager::GetSingleton();
+					//input->DisableControl(InputMappingManager::ContextType::kContext_ItemMenu);
+					//input->DisableControl(InputMappingManager::ContextType::kContext_Gameplay);
+					//input->EnableControl(InputMappingManager::ContextType::kContext_MenuMode);
+				//}
 			}
 			else
 			{
@@ -805,6 +822,7 @@ public:
 				}
 			}
 		}
+
 		return result;
 	}
 
@@ -870,39 +888,94 @@ public:
 
 	UInt32 ProcessMessage_Hook(UIMessage* msg)
 	{
-		UInt32 result = (this->*fnProcessMessage)(msg);
-
-		if (msg->type == UIMessage::kMessage_Open)
+		if (!(this->flags & IMenu::kType_PauseGame) && msg->type != UIMessage::kMessage_Refresh && msg->type != UIMessage::kMessage_Open && msg->type != UIMessage::kMessage_Close)
 		{
-			MenuManager* mm = MenuManager::GetSingleton();
-			UIStringHolder* holder = UIStringHolder::GetSingleton();
+			return this->IMenu::ProcessMessage(msg);
+		}
+		return (this->*fnProcessMessage)(msg);
+	}
 
-			if (holder && mm && mm->IsMenuOpen(holder->sleepWaitMenu) && (this->flags & IMenu::kType_PauseGame) && mm->numPauseGame)
+	static void UICallBack_WaitSleep(FxDelegateArgs* pargs)
+	{
+		class WaitSleepUpdater : public TaskDelegate
+		{
+		public:
+			TES_FORMHEAP_REDEFINE_NEW();
+
+			void Run() override
 			{
-				mm->numPauseGame -= 1;
-				this->flags &= ~IMenu::kType_PauseGame;
-				if (!mm->numPauseGame)
+				MenuManager* mm = MenuManager::GetSingleton();
+				UIStringHolder* stringHoler = UIStringHolder::GetSingleton();
+				if (mm->IsMenuOpen(stringHoler->sleepWaitMenu))
 				{
-					static MenuModeChangeEvent event;
-					event.unk0 = 0;
-					event.menuMode = 0;
-					mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
+					FxDelegateArgs args;
+					args.responseID.SetNumber(0);
 
-					typedef void(__fastcall * Fn)(void*, void*);
-					Fn ReleaseObject = (Fn)0xA511B0;
-					ReleaseObject(&event, nullptr);
+					SleepWaitMenu* sleepWaitMenu = static_cast<SleepWaitMenu*>(mm->GetMenu(stringHoler->sleepWaitMenu));
+					args.pThisMenu = sleepWaitMenu;
+
+					GFxMovieView* view = sleepWaitMenu->GetMovieView();
+					args.movie = view;
+
+					GFxValue result;
+					void(__fastcall* Invoke)(GFxValue*, void*, const char*, GFxValue*, GFxValue*, UInt32) = (void(__fastcall*)(GFxValue*, void*, const char*, GFxValue*, GFxValue*, UInt32))0x00848930;
+					Invoke(&sleepWaitMenu->unk20, nullptr, "getSliderValue", &result, nullptr, 0);
+
+					args.args = &result;
+					args.numArgs = 1;
+
+					((void(__cdecl*)(FxDelegateArgs*))0x00887A10)(&args);
 				}
 			}
+			void Dispose() override
+			{
+				delete this;
+			}
+			static void Register()
+			{
+				const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+				const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+				if (task)
+				{
+					MenuManager* mm = MenuManager::GetSingleton();
+					mm->numPauseGame += 1;
+					WaitSleepUpdater *delg = new WaitSleepUpdater();
+					task->AddTask(delg);
+				}
+			}
+		};
+
+		SleepWaitMenu* sleepWaitMenu = static_cast<SleepWaitMenu*>(pargs->pThisMenu);
+		bool(__cdecl* IsGameRuning)(bool mask) = (bool(__cdecl*)(bool mask))0x006F3570;
+		if (!IsGameRuning(true))
+		{
+			((void(__cdecl*)(FxDelegateArgs*))0x00887A10)(pargs);
 		}
-		return result;
+		else if(!(sleepWaitMenu->flags & IMenu::kType_PauseGame))
+		{
+			sleepWaitMenu->flags |= IMenu::kType_PauseGame;
+			WaitSleepUpdater::Register();
+		}
 	}
 
 	static void InitHook()
 	{
 		fnProcessMessage = SafeWrite32(0x010E7754 + 0x04 * 4, &ProcessMessage_Hook);
+
+		SafeWrite32(0x00887D9C, (UInt32)SleepWaitMenu::UICallBack_WaitSleep);
 	}
+
+
+	UInt32					unk1C;
+	GFxValue				unk20;
+	bool					unk30;
+	bool					unk31;
+	UInt16					unk32;
+	UInt32					unk34;
 };
+static_assert(sizeof(SleepWaitMenu) == 0x38, "sizeof(SleepWaitMenu) != 0x38");
 SleepWaitMenu::FnProcessMessage	SleepWaitMenu::fnProcessMessage = nullptr;
+
 
 
 void UICallBack_DropItem(FxDelegateArgs* pargs)
@@ -1101,7 +1174,7 @@ void Hook_Game_Commit()
 
 	DialogueMenuEx::InitHook();
 	MagicMenuEx::InitHook();
-	//SleepWaitMenu::InitHook();
+	SleepWaitMenu::InitHook();
 
 	//Fix Inventory.
 	SafeWrite16(0x0086BF6F, 0x9090);

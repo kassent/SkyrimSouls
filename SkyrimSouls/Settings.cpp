@@ -65,10 +65,10 @@ bool Settings::Set(const char *name, int val)
 	{
 		m_menuConfig["Journal Menu"] = val;
 	}
-	//else if (_stricmp(name, "SleepWaitMEnu") == 0)
-	//{
-	//	m_menuConfig["Sleep/Wait Menu"] = val;
-	//}
+	else if (_stricmp(name, "SleepWaitMenu") == 0)
+	{
+		m_menuConfig["Sleep/Wait Menu"] = val;
+	}
 	else if (_stricmp(name, "CustomMenu") == 0)
 	{
 		m_menuConfig["CustomMenu"] = val;

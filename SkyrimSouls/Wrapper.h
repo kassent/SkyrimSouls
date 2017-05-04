@@ -20,8 +20,8 @@ public:
 		if (it != menuTable->end())
 		{
 			m_ctor = it->value.menuConstructor;
-			//_MESSAGE("Wrapper<%s>::Register()		ctor: %p", N.c_str(), m_ctor);
-			_MESSAGE("Wrapper<%s>::Register()", N.c_str());
+			_MESSAGE("Wrapper<%s>::Register()		ctor: %p", N.c_str(), m_ctor);
+			//_MESSAGE("Wrapper<%s>::Register()", N.c_str());
 			it->value.menuConstructor = CreateIMenu;
 			return true;
 		}
@@ -43,7 +43,7 @@ public:
 					menu->flags &= ~IMenu::kType_PauseGame;
 					menu->flags &= ~IMenu::kType_StopDrawingWorld;
 					menu->flags |= IMenu::kType_StopCrosshairUpdate;
-					//menu->flags |= IMenu::kType_ItemMenu;
+
 					if (menu->menuDepth < 0x3)
 					{
 						menu->menuDepth = 0x3;

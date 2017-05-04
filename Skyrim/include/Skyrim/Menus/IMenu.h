@@ -119,7 +119,13 @@ public:
 									//    -                                  +-------------------4000 Stop Updating Crosshair, Disable Journal, Prevent Game Load
 	UInt32			context;		// 14 - input context - init'd to 0x12 (kContext_Invalid)
 	FxDelegate		* fxDelegate;	// 18 - allocated in SetMovieView
-
+									/*
+									Wrapper<InventoryMenu>::Register()		ctor: 0086A3F0
+									Wrapper<MagicMenu>::Register()		    ctor: 00873D10
+									Wrapper<ContainerMenu>::Register()		ctor: 008497D0
+									Wrapper<BarterMenu>::Register()		    ctor: 00842B30
+									Wrapper<GiftMenu>::Register()		    ctor: 0085D1E0
+									*/
 private:
 	DEFINE_MEMBER_FN(ctor, void, 0x00A64B70);
 	DEFINE_MEMBER_FN(dtor, void, 0x00A64A10);

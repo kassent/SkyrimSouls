@@ -27,8 +27,9 @@ struct Settings
 #ifdef DEBUG_LOG
 		m_menuConfig["MapMenu"] = 1;
 		m_menuConfig["StatsMenu"] = 1;
-		m_menuConfig["Sleep/Wait Menu"] = 0;
+		//m_menuConfig["Sleep/Wait Menu"] = 0;
 #endif
+		m_menuConfig["Sleep/Wait Menu"] = 1;
 		m_menuConfig["GiftMenu"] = 1;
 		m_menuConfig["Journal Menu"] = 1;
 		//Sleep/Wait Menu

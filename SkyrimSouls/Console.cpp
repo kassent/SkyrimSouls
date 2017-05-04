@@ -54,7 +54,7 @@ static bool Cmd_CenterOnCell_Execute(const SCRIPT_PARAMETER *paramInfo, CommandI
 				ConsoleManager *console = ConsoleManager::GetSingleton();
 				if (console && ConsoleManager::IsConsoleMode())
 				{
-					console->Print("> This command is disabled when Console is in unpaused state.Please type \"sssv Console 0\" to disable Console in runtime.");
+					console->Print("> This command is disabled when Console is in unpaused state.Please type \"sssv Console 0\" to disable Console at runtime.");
 				}
 			}
 			else
