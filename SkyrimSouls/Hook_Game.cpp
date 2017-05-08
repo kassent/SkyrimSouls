@@ -1221,14 +1221,14 @@ void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
 			std::regex coc("^\\s*(CenterOnCell|COC)\\s+\\w+\\s*$", std::regex::icase);
 
 			std::string command(pargs->args->GetString());
-			if (std::regex_match(command, tg) || std::regex_match(command, tb) || std::regex_match(command, save) || std::regex_match(command, csb) || std::regex_match(command, coe))
+			if (std::regex_match(command, tg) || std::regex_match(command, tb) || std::regex_match(command, save) || std::regex_match(command, csb) || std::regex_match(command, coe) || std::regex_match(command, cow))
 			{
 				ConsoleCommandUpdater::Register(command.c_str());
 			}
-			else if (std::regex_match(command, coc) || std::regex_match(command, cow))
+			else if (std::regex_match(command, coc))
 			{
 				ConsoleManager *consoleManager = ConsoleManager::GetSingleton();
-				if (consoleManager && ConsoleManager::IsConsoleMode())
+				if (consoleManager)
 				{
 					consoleManager->Print("> This command is disabled when Console is in unpaused state.Please type \"sssv Console 0\" to disable Console at runtime.");
 				}
@@ -1248,7 +1248,7 @@ void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
 				{
 					SInt16 x = 0;
 					UInt16 y = 0;
-					TESDataHandler* pDataHandler = TESDataHandler::GetSingleton();
+					TESDataHandler* pDataHandler = TESDataHandler::GetSingleton();//next codes are too slow...
 					void* worldSpace = pDataHandler->GetSpaceData(destination.c_str(), x, y);
 					if (worldSpace != nullptr)
 					{
