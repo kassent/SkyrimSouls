@@ -3,6 +3,7 @@
 #include <SKSE/DebugLog.h>
 #include "Wrapper.h"
 #include "Console.h"
+#include "Task.h"
 #include "Hook_Game.h"
 
 //========================================================
@@ -47,6 +48,8 @@ public:
 	virtual bool OnLoad() override
 	{
 		SKSEPlugin::OnLoad();
+
+		PauseTaskInterface::Init();
 
 		const SKSEMessagingInterface *message = GetInterface(SKSEMessagingInterface::Version_2);
 		message->RegisterListener("SKSE", OnInit);

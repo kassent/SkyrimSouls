@@ -28,7 +28,7 @@ public:
 	UInt32	length(void) const;
 	const char* c_str(void) const { return data; }
 
-private:
+//private:
 	DEFINE_MEMBER_FN(impl_ctor, BSFixedString *, 0x00A511C0, const char * buf);
 	DEFINE_MEMBER_FN(impl_ctor_copy, BSFixedString *, 0x00A50D50, const BSFixedString & rhs);
 	DEFINE_MEMBER_FN(impl_Release, void, 0x00A511B0);

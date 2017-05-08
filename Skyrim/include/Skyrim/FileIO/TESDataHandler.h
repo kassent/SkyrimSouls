@@ -37,7 +37,7 @@ public:
 	DEFINE_MEMBER_FN(GetNextID, FormID, 0x0043B6D0);
 	DEFINE_MEMBER_FN(IsGeneratedID, bool, 0x0043B790, FormID formID);		// { return (formID >= 0xFF000000); } 
 	DEFINE_MEMBER_FN(HotLoadPlugin, void, 0x00443810, const char *name);
-
+	DEFINE_MEMBER_FN(GetSpaceData, void*, 0x0043CB20, const char *name, SInt16&, UInt16&);
 	// @members
 	UInt32							unk004;
 	BSTArray<TESForm*>				persistanceForms;	// 08 - PapyrusPersistenceForm(formid=028A), CommandingActorPersistenceForm(0294)

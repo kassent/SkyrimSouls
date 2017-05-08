@@ -154,13 +154,16 @@
     <ClCompile Include="Hook_Game.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Settings.cpp" />
+    <ClCompile Include="Task.cpp" />
     <ClCompile Include="Wrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Console.h" />
     <ClInclude Include="Hook_Game.h" />
+    <ClInclude Include="ICriticalSection.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Settings.h" />
+    <ClInclude Include="Task.h" />
     <ClInclude Include="Wrapper.h" />
     <ClInclude Include="Tools.h" />
   </ItemGroup>

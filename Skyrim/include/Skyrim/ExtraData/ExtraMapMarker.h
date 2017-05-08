@@ -16,30 +16,38 @@ class ExtraMapMarker : public BSExtraData
 public:
 	enum { kExtraTypeID = (UInt32)ExtraDataType::MapMarker };
 
-	//DEFINE_MEMBER_FN(ctor, ExtraMapMarker*, 0x00422460, UInt32 arg1);	{ unk08 = arg1; }
+	virtual ~ExtraMapMarker();
 
-	// 0C
-	class Data : public TESFullName
+	class MarkerData : public TESFullName
 	{
-		CLASS_SIZE_ASSERT(0x0C)
 	public:
-		UInt8	flags1;
-		UInt8	flags2;
-		UInt16	unk0A;
 
-		void Enable(bool abEnabled) {		// 0x00428FE0
+		enum
+		{
+			kFlag2_None = 0,
+			kFlag2_Visible = 1 << 0,
+			kFlag2_CantFastTravelTo = 1 << 1,
+			kFlag2_HiddenWhenShowAll = 1 << 2,
+		};
+
+		UInt8			flags1;
+		UInt8			flags2;
+		UInt16			icon;
+
+		void Enable(bool abEnabled) {
 			if (abEnabled)
 				flags1 |= 0x02;
 			else
 				flags1 &= 0xFD;
 		}
+		DEFINE_MEMBER_FN(ctor, MarkerData*, 0x00429050);
 	};
 
+	void Release();
 
+
+	static ExtraMapMarker* Create();
 	// @members
-	//void	** _vtbl	// 00 - 01079148
-	Data	* mapMarker;
-
-private:
-	DEFINE_MEMBER_FN(ctor, ExtraMapMarker*, 0x00422630);
+	//void	**					_vtbl	// 00 - 01079148
+	MarkerData*					data;
 };

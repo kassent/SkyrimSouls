@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ExtraMapMarker.cpp" />
     <ClCompile Include="src\Animation\AnimationClipDataSingleton.cpp" />
     <ClCompile Include="src\Animation\AnimationHandlers.cpp" />
     <ClCompile Include="src\BSCore\BSFixedString.cpp" />

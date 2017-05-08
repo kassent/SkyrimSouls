@@ -45,5 +45,9 @@ public:
 	TESForm			* parentQuest;		// 3C
 	RefListEntry	refList;			// 40
 	VarInfoEntry	varList;			// 48
+
+	DEFINE_MEMBER_FN(ctor, Script*, 0x005140C0);
+
+	DEFINE_MEMBER_FN(sub_451D20, void, 0x00451D20);
 };
 STATIC_ASSERT(sizeof(Script) == 0x50);

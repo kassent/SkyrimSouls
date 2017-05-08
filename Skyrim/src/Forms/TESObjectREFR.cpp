@@ -137,9 +137,9 @@ bool TESObjectREFR::IsLocked() const
 void TESObjectREFR::EnableFastTravel(bool abEnable)
 {
 	ExtraMapMarker *xMarker = extraData.GetByType<ExtraMapMarker>();
-	if (xMarker && xMarker->mapMarker)
+	if (xMarker && xMarker->data)
 	{
-		xMarker->mapMarker->Enable(abEnable);
+		xMarker->data->Enable(abEnable);
 		MarkChanged(0x80000000);
 	}
 }
@@ -148,7 +148,7 @@ bool TESObjectREFR::IsMapMarkerVisible() const
 {
 	ExtraMapMarker *xMarker = extraData.GetByType<ExtraMapMarker>();
 	
-	return xMarker && xMarker->mapMarker && flags.visible;
+	return xMarker && xMarker->data && flags.visible;
 }
 
 bool TESObjectREFR::HasEffectKeyword(const BGSKeyword *keyword) const

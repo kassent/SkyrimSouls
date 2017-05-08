@@ -1,6 +1,8 @@
 #include "Hook_Game.h"
 #include "Settings.h"
 #include "Tools.h"
+#include "Task.h"
+
 #include <SKSE/GameMenus.h>
 #include <SKSE/SafeWrite.h>
 #include <SKSE/GameRTTI.h>
@@ -21,7 +23,9 @@
 #include <Skyrim/Menus/Inventory3DManager.h>
 #include <Skyrim/FileIO/BGSSaveLoadManager.h>
 #include <Skyrim/BSMain/Setting.h>
+#include <Skyrim/FileIO/TESDataHandler.h>
 
+#include <regex>
 #include <vector>
 #include <string>
 #include <string>
@@ -75,21 +79,8 @@ public:
 					}
 					//*((UInt32*)control->lookHandler + 1) = true;
 				}
-				//if (evn->menuName == holder->inventoryMenu)
-				//{
-				//	//handleName: struct LookHandler
-				//	InputMappingManager* input = InputMappingManager::GetSingleton();
 				//	input->DisableControl(InputMappingManager::ContextType::kContext_ItemMenu);
 				//	input->EnableControl(InputMappingManager::ContextType::kContext_Gameplay);
-				//}
-				//if (evn->menuName == holder->sleepWaitMenu)
-				//{
-					//handleName: struct LookHandler
-					//InputMappingManager* input = InputMappingManager::GetSingleton();
-					//input->DisableControl(InputMappingManager::ContextType::kContext_ItemMenu);
-					//input->DisableControl(InputMappingManager::ContextType::kContext_Gameplay);
-					//input->EnableControl(InputMappingManager::ContextType::kContext_MenuMode);
-				//}
 			}
 			else
 			{
@@ -1112,7 +1103,7 @@ void UICallBack_SelectItem(FxDelegateArgs* pargs)
 		}
 	};
 	auto fn = [=](UInt32 time)->bool {std::this_thread::sleep_for(std::chrono::milliseconds(time)); PlayerInfoUpdater::Register(); return true; };
-	really_async(fn, 100);
+really_async(fn, 100);
 }
 
 
@@ -1152,6 +1143,135 @@ void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 }
 
 
+void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
+{
+	class ConsoleCommandUpdater : public TaskDelegate
+	{
+	public:
+		TES_FORMHEAP_REDEFINE_NEW();
+		ConsoleCommandUpdater(const char* command)
+		{
+			m_command = command;
+		}
+
+		void Run() override
+		{
+			MenuManager* mm = MenuManager::GetSingleton();
+			UIStringHolder* stringHoler = UIStringHolder::GetSingleton();
+
+			if (mm->IsMenuOpen(stringHoler->console))
+			{
+				FxDelegateArgs args;
+				args.responseID.SetNumber(0);
+
+				IMenu* console = mm->GetMenu(stringHoler->console);
+				args.pThisMenu = console;
+
+				GFxMovieView* view = console->GetMovieView();
+				args.movie = view;
+
+				GFxValue arg(m_command.c_str());
+				args.args = &arg;
+
+				args.numArgs = 1;
+
+				((void(__cdecl*)(FxDelegateArgs*))0x00847080)(&args);
+
+				if (mm->IsMenuOpen(stringHoler->console) && mm->numPauseGame && console->flags & IMenu::kType_PauseGame)
+				{
+					mm->numPauseGame -= 1;
+					console->flags &= ~IMenu::kType_PauseGame;
+				}
+			}
+
+		}
+		void Dispose() override
+		{
+			delete this;
+		}
+		static void Register(const char* command)
+		{
+			UIStringHolder* stringHoler = UIStringHolder::GetSingleton();
+
+			MenuManager* mm = MenuManager::GetSingleton();
+			IMenu* console = mm->GetMenu(stringHoler->console);
+			if (!(console->flags & IMenu::kType_PauseGame))
+			{
+				console->flags |= IMenu::kType_PauseGame;
+				mm->numPauseGame += 1;
+			}
+			ConsoleCommandUpdater *delg = new ConsoleCommandUpdater(command);
+			PauseTaskInterface::AddTask(delg);
+		}
+	private:
+		std::string					m_command;
+	};
+
+	if (pargs->args->GetType() == GFxValue::ValueType::VT_String)
+	{
+		IMenu* console = static_cast<IMenu*>(pargs->pThisMenu);
+		if (!(console->flags & IMenu::kType_PauseGame))
+		{
+			std::regex tg("^\\s*(ToggleGrass|TG)\\s*$", std::regex::icase);
+			std::regex tb("^\\s*(ToggleBorders|TB)\\s*$", std::regex::icase);
+			std::regex save("^\\s*(SaveGame|save)\\s+\\w+(\\s+[+-]?\\d+)?\\s*$", std::regex::icase);
+			std::regex csb("^\\s*(ClearScreenBlood|csb)\\s*$", std::regex::icase);
+			std::regex coe("^\\s*(CenterOnExterior|COE)(\\s+[+-]?\\d+){2}\\s*$", std::regex::icase);
+			std::regex cow("^\\s*(CenterOnWorld|COW)\\s+\\w+(\\s+[+-]?\\d+){2}\\s*$", std::regex::icase);
+			std::regex coc("^\\s*(CenterOnCell|COC)\\s+\\w+\\s*$", std::regex::icase);
+
+			std::string command(pargs->args->GetString());
+			if (std::regex_match(command, tg) || std::regex_match(command, tb) || std::regex_match(command, save) || std::regex_match(command, csb) || std::regex_match(command, coe))
+			{
+				ConsoleCommandUpdater::Register(command.c_str());
+			}
+			else if (std::regex_match(command, coc) || std::regex_match(command, cow))
+			{
+				ConsoleManager *consoleManager = ConsoleManager::GetSingleton();
+				if (consoleManager && ConsoleManager::IsConsoleMode())
+				{
+					consoleManager->Print("> This command is disabled when Console is in unpaused state.Please type \"sssv Console 0\" to disable Console at runtime.");
+				}
+			}
+			else if (false && std::regex_match(command, coc))  //slow speed,so don't use it in unpaused state.
+			{
+				std::vector<std::string> sections;
+				std::regex pattern("\\b\\w+\\b", std::regex::icase);
+				for (std::sregex_iterator it(command.begin(), command.end(), pattern), end_it; it != end_it; ++it)
+				{
+					sections.push_back(it->str());
+				}
+				std::string destination = sections[1];
+				void* (*GetInteriorCell)(const char*) = (void* (*)(const char*))0x00451B60;
+				void* cell = GetInteriorCell(destination.c_str());
+				if (!cell)
+				{
+					SInt16 x = 0;
+					UInt16 y = 0;
+					TESDataHandler* pDataHandler = TESDataHandler::GetSingleton();
+					void* worldSpace = pDataHandler->GetSpaceData(destination.c_str(), x, y);
+					if (worldSpace != nullptr)
+					{
+						void* (__fastcall* GetExteriorCell)(void*, void*, SInt16, UInt16) = (void* (__fastcall*)(void*, void*, SInt16, UInt16))0x004F5330;
+						cell = GetExteriorCell(worldSpace, nullptr, x, y);
+					}
+				}
+				if (cell != nullptr)
+				{
+					ConsoleCommandUpdater::Register(command.c_str());
+				}
+			}
+			else
+			{
+				((void(__cdecl*)(FxDelegateArgs*))0x00847080)(pargs);
+			}
+		}
+		else
+		{
+			((void(__cdecl*)(FxDelegateArgs*))0x00847080)(pargs);
+		}
+	}
+}
 
 void RegisterEventHandler()
 {
@@ -1193,6 +1313,10 @@ void Hook_Game_Commit()
 	SafeWrite32(0x0086B3F4, (UInt32)UICallBack_SelectItem);
 	//SetSaveDisabled in Journal Menu
 	SafeWrite32(0x008A7F73, (UInt32)UICallBack_SetSaveDisabled);
+
+	//UICallBack_ExecuteCommand //0084732B
+	SafeWrite32(0x0084732C, (UInt32)UICallBack_ExecuteCommand);
+
 	//Fix camera in Tweenmenu.
 	SafeWrite8(0x008951C4, 0x90);
 	SafeWrite32(0x008951C5, 0x90909090);

@@ -49,7 +49,7 @@ static bool Cmd_CenterOnCell_Execute(const SCRIPT_PARAMETER *paramInfo, CommandI
 			MenuManager* mm = MenuManager::GetSingleton();
 			UIStringHolder* holder = UIStringHolder::GetSingleton();
 
-			if (mm->IsMenuOpen(holder->console) && !(mm->GetMenu(holder->console)->flags & IMenu::kType_PauseGame))
+			if (mm->IsMenuOpen(holder->console) && !(mm->GetMenu(holder->console)->flags & IMenu::kType_PauseGame) && (1 == 0))
 			{
 				ConsoleManager *console = ConsoleManager::GetSingleton();
 				if (console && ConsoleManager::IsConsoleMode())
@@ -84,7 +84,7 @@ namespace ConsoleCommand
 	{
 		_MESSAGE("ConsoleCommand::Register()");
 		//00536DD0
-		WriteRelJump(0x00536DD0, (UInt32)Cmd_CenterOnCell_Execute);
+		//WriteRelJump(0x00536DD0, (UInt32)Cmd_CenterOnCell_Execute);
 
 		CommandInfo *info;
 

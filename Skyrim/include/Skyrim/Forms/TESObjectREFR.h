@@ -335,9 +335,6 @@ public:
 		return GetBoundRightBackTop(&p1)->x - GetBoundLeftFrontBottom(&p2)->x;
 	}
 
-	// Returns the worldspace this reference is in.
-	DEFINE_MEMBER_FN(GetWorldSpace, TESWorldSpace *, 0x004D5EB0);
-
 	// Returns if this reference has an active effect coming from a magic effect with the specified keyword attached.
 	bool HasEffectKeyword(const BGSKeyword *keyword) const;	// 004D57A0
 
@@ -391,6 +388,13 @@ public:
 
 	bool SetDisplayName(const BSFixedString& text, bool bForce = false);
 
+	// Returns the worldspace this reference is in.
+
+	TESWorldSpace* GetWorldSpace()
+	{
+		return GetWorldSpace_Impl();
+	}
+
 	DEFINE_MEMBER_FN(GetBaseScale, float, 0x004D5230);
 	DEFINE_MEMBER_FN(IsOffLimits, bool, 0x004DA760);
 	DEFINE_MEMBER_FN(GetWeight, float, 0x004EA180);
@@ -426,7 +430,7 @@ protected:
 	DEFINE_MEMBER_FN_const(GetLevel_Impl, UInt16, 0x004EAB60, bool);
 	DEFINE_MEMBER_FN_const(IsOwnedBy_Impl, bool, 0x004EC3B0, Actor* actor, bool unk1, bool unk2);
 	DEFINE_MEMBER_FN_const(GetOwner_Impl, TESForm *, 0x004EC0C0);
-
+	DEFINE_MEMBER_FN(GetWorldSpace_Impl, TESWorldSpace*, 0x004D5EB0);
 	DEFINE_MEMBER_FN_const(GetLock_Impl, ExtraLock *, 0x004EB5B0);
 
 
