@@ -30,6 +30,7 @@
 #include <string>
 #include <string>
 #include <algorithm>
+#include <functional>
 
 #define STDFN __stdcall
 
@@ -968,6 +969,90 @@ static_assert(sizeof(SleepWaitMenu) == 0x38, "sizeof(SleepWaitMenu) != 0x38");
 SleepWaitMenu::FnProcessMessage	SleepWaitMenu::fnProcessMessage = nullptr;
 
 
+class MessageBoxMenu : public IMenu
+{
+public:
+	class CallbackDelegate : public TaskDelegate //create a template in future.
+	{
+	public:
+		TES_FORMHEAP_REDEFINE_NEW();
+
+		enum TaskType
+		{
+			kType_Normal,
+			kType_Pause,
+			kType_UI
+		};
+
+		CallbackDelegate(std::function<void(void)>&& delegate) : m_callback(delegate)
+		{
+		}
+		void Run() override
+		{
+			m_callback();
+		}
+		void Dispose() override
+		{
+			delete this;
+		}
+		static void Register(std::function<void(void)>&& callback)
+		{
+			CallbackDelegate *delg = new CallbackDelegate(std::forward<std::function<void(void)>>(callback));
+			PauseTaskInterface::AddTask(delg);
+		}
+	private:
+		std::function<void(void)>		m_callback;
+	};
+
+	static void UICallback_ButtonPress(FxDelegateArgs* pargs)
+	{
+#ifdef DEBUG_LOG
+		_MESSAGE("type: %d    index: %.2f   num: %d", (UInt32)pargs->args->GetType(), pargs->args->GetNumber(), pargs->numArgs);
+#endif
+		if (pargs->args->GetType() == GFxValue::ValueType::VT_Number)
+		{
+			IMenu* msgMenu = static_cast<IMenu*>(pargs->pThisMenu);
+			if (!(msgMenu->flags & IMenu::kType_PauseGame))
+			{
+				double iIndex = pargs->args->GetNumber();
+
+				auto fn = [=]() {
+					FxDelegateArgs args;
+					args.responseID.SetNumber(0);
+					args.pThisMenu = msgMenu;
+
+					GFxMovieView* view = msgMenu->GetMovieView();
+					args.movie = view;
+
+					GFxValue arg;
+					arg.SetNumber(iIndex);
+					args.args = &arg;
+
+					args.numArgs = 1;
+#ifdef DEBUG_LOG
+					_MESSAGE("iIndex: %.2f    IMenu: %p", iIndex, msgMenu);
+#endif
+					((void(__cdecl*)(FxDelegateArgs*))0x0087B1D0)(&args);
+				};
+
+				MenuManager* mm = MenuManager::GetSingleton();
+				msgMenu->flags |= IMenu::kType_PauseGame;
+				mm->numPauseGame += 1;
+				CallbackDelegate::Register(std::move(fn));
+			}
+			else
+			{
+				((void(__cdecl*)(FxDelegateArgs*))0x0087B1D0)(pargs);
+			}
+		}
+	}
+
+	static void InitHook()
+	{
+		SafeWrite32(0x0087B34C, (UInt32)UICallback_ButtonPress);
+	}
+
+};
 
 void UICallBack_DropItem(FxDelegateArgs* pargs)
 {
@@ -1103,7 +1188,7 @@ void UICallBack_SelectItem(FxDelegateArgs* pargs)
 		}
 	};
 	auto fn = [=](UInt32 time)->bool {std::this_thread::sleep_for(std::chrono::milliseconds(time)); PlayerInfoUpdater::Register(); return true; };
-really_async(fn, 100);
+	really_async(fn, 100);
 }
 
 
@@ -1219,9 +1304,10 @@ void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
 			std::regex coe("^\\s*(CenterOnExterior|COE)(\\s+[+-]?\\d+){2}\\s*$", std::regex::icase);
 			std::regex cow("^\\s*(CenterOnWorld|COW)\\s+\\w+(\\s+[+-]?\\d+){2}\\s*$", std::regex::icase);
 			std::regex coc("^\\s*(CenterOnCell|COC)\\s+\\w+\\s*$", std::regex::icase);
+			std::regex jail("^\\s*(ServeTime)\\s*$", std::regex::icase);
 
 			std::string command(pargs->args->GetString());
-			if (std::regex_match(command, tg) || std::regex_match(command, tb) || std::regex_match(command, save) || std::regex_match(command, csb) || std::regex_match(command, coe) || std::regex_match(command, cow))
+			if (std::regex_match(command, tg) || std::regex_match(command, tb) || std::regex_match(command, save) || std::regex_match(command, csb) || std::regex_match(command, coe) || std::regex_match(command, cow) || std::regex_match(command, jail))
 			{
 				ConsoleCommandUpdater::Register(command.c_str());
 			}
@@ -1295,7 +1381,7 @@ void Hook_Game_Commit()
 	DialogueMenuEx::InitHook();
 	MagicMenuEx::InitHook();
 	SleepWaitMenu::InitHook();
-
+	MessageBoxMenu::InitHook();
 	//Fix Inventory.
 	SafeWrite16(0x0086BF6F, 0x9090);
 	SafeWrite32(0x0086BF71, 0x90909090);

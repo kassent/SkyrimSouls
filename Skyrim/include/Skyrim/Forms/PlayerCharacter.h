@@ -189,6 +189,7 @@ public:
 	//virtual ????   Unk_127(????) override;                           // 0073D750
 	//virtual bool   Unk_129(void) override;                           // 0074E640 { return Unk_71(); }
 
+	//virtual void   Unk_0A5(void) override;                           // 00750B90
 	// @add
 	virtual void Unk_12A(void);					// 00744270
 	virtual void Unk_12B(void);					// 007442C0
@@ -228,6 +229,7 @@ public:
 	DEFINE_MEMBER_FN(OnCrosshairRefChanged, void, 0x00739FD0);		// called from 0074F855
 	DEFINE_MEMBER_FN(GetActorInFavorState, Actor*, 0x0073D4B0);
 
+	DEFINE_MEMBER_FN(ServeInJail, void, 0x0074B7E0);
 
 	DEFINE_MEMBER_FN(sub_4D6630, void*, 0x004D6630);
 
