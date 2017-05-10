@@ -73,9 +73,9 @@ bool Settings::Set(const char *name, int val)
 	{
 		m_menuConfig["CustomMenu"] = val;
 	}
-	else if (_stricmp(name, "WaitTime") == 0)
+	else if (_stricmp(name, "FadeOutDist") == 0)
 	{
-		m_waitTime = val;
+		m_fadeOutDist = val;
 	}
 	else
 	{

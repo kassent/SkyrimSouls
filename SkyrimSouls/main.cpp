@@ -33,14 +33,14 @@ public:
 
 	virtual bool InitInstance() override
 	{
-		if (!Requires(kSKSEVersion_1_7_1, SKSEMessagingInterface::Version_2, SKSETaskInterface::Version_2))
+		if (!Requires(kSKSEVersion_1_7_3, SKSEMessagingInterface::Version_2, SKSETaskInterface::Version_2))
 		{
 			gLog << "ERROR: your skse version is too old." << std::endl;
 			return false;
 		}
 
 		SetName(GetDllName());
-		SetVersion(1);
+		SetVersion(20);
 
 		return true;
 	}

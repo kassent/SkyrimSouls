@@ -34,11 +34,11 @@ struct Settings
 		m_menuConfig["Journal Menu"] = 1;
 		//Sleep/Wait Menu
 		m_menuConfig["CustomMenu"] = 1;
-		m_waitTime = 30;
+		m_fadeOutDist = 200;
 	}
 
 	std::map<std::string, int>		m_menuConfig;
-	int								m_waitTime;
+	int								m_fadeOutDist;
 
 	bool Set(const char *name, int val);
 	void Eval(const char *line);

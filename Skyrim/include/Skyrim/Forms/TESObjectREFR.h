@@ -403,6 +403,8 @@ public:
 	DEFINE_MEMBER_FN(GetCurrentLocation, BGSLocation*, 0x004D83C0);
 	DEFINE_MEMBER_FN(ActivateRefChildren, UInt32, 0x004EB940, TESObjectREFR *activator);
 
+	DEFINE_MEMBER_FN(GetDistance, float, 0x004D7E70, TESObjectREFR* target, bool unk0, bool unk1);// 1    0
+
 	bool IsOwnedBy(Actor* actor, bool unk1 = true, bool unk2 = false) const {
 		return IsOwnedBy_Impl(actor, unk1, unk2);
 	}

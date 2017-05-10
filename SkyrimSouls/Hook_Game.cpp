@@ -28,7 +28,6 @@
 #include <regex>
 #include <vector>
 #include <string>
-#include <string>
 #include <algorithm>
 #include <functional>
 
@@ -75,13 +74,52 @@ public:
 					PlayerControls* control = PlayerControls::GetSingleton();
 					for (auto element : control->handlers)
 					{
-						//_MESSAGE("handleName: %s", GetObjectClassName(element));
 						*((UInt32*)element + 1) = false;
 					}
 					//*((UInt32*)control->lookHandler + 1) = true;
 				}
-				//	input->DisableControl(InputMappingManager::ContextType::kContext_ItemMenu);
-				//	input->EnableControl(InputMappingManager::ContextType::kContext_Gameplay);
+				//input->DisableControl(InputMappingManager::ContextType::kContext_ItemMenu);
+				//input->EnableControl(InputMappingManager::ContextType::kContext_Gameplay);
+
+				if (evn->menuName == holder->containerMenu)
+				{
+					TESObjectREFR* ref = nullptr;
+					void(__cdecl* GetContainerOwner)(void*, TESObjectREFR*&) = (void(__cdecl*)(void*, TESObjectREFR*&))0x004A9180;
+					GetContainerOwner((void*)0x01B3E764, ref);
+					if (ref != nullptr)
+					{
+						UInt32& lootMode = *(UInt32*)0x01B3E6FC;
+						UInt32 iActivateDist = g_gameSettingCollection->Get("iActivatePickLength")->data.u32 + 50;//iActivatePickLength
+
+						if (ref->Is(FormType::Character) && !ref->IsDead(false) && lootMode == 2 && settings.m_fadeOutDist >= iActivateDist)
+						{
+#ifdef DEBUG_LOG
+							_MESSAGE("Pickpocketing...");
+							float distance = g_thePlayer->GetDistance(ref, true, false);
+							_MESSAGE("formType: %d    formName: %s", (UInt32)ref->formType, ref->GetFullName());
+#endif
+							auto fn = [=]()->bool {
+								UIStringHolder* holder = UIStringHolder::GetSingleton();
+								MenuManager* mm = MenuManager::GetSingleton();
+								while (mm->IsMenuOpen(holder->containerMenu) && !ref->IsDisabled() && !ref->IsDeleted())
+								{
+									float distance = g_thePlayer->GetDistance(ref, true, false);
+									if (distance > settings.m_fadeOutDist)
+									{
+										mm->CloseMenu(holder->containerMenu);
+										break;
+									}
+#ifdef DEBUG_LOG
+									_MESSAGE("distance: %.2f", distance);
+#endif
+									std::this_thread::sleep_for(std::chrono::milliseconds(300));
+								}
+								return true;
+							};
+							really_async(fn);
+						}
+					}
+				}
 			}
 			else
 			{
@@ -322,8 +360,6 @@ public:
 	// ....
 };
 static_assert(sizeof(FavoritesMenu) == 0x48, "sizeof(FavoritesMenu) != 0x48");
-
-
 
 
 class BookMenu : public IMenu,
@@ -647,11 +683,8 @@ public:
 
 };
 static_assert(sizeof(BookMenu) == 0x60, "sizeof(BookMenu) != 0x60");
-
 BookMenu::FnProcessMessage	BookMenu::fnProcessMessage = nullptr;
 BookMenu::FnReceiveEvent	BookMenu::fnReceiveEvent = nullptr;
-
-
 
 
 class LockpickingMenu : public IMenu
@@ -1053,7 +1086,6 @@ public:
 	}
 
 };
-
 
 
 void UICallBack_DropItem(FxDelegateArgs* pargs)
@@ -1485,7 +1517,7 @@ void Hook_Game_Commit()
 			sub esp, 0x104
 		END_ASM(Hook_RequstAutoSave)
 	}
-	//Beta...
+
 	{
 		static const UInt32 kHook_DisableTimeUpdate_Jmp = 0x008D41F8;
 
@@ -1504,44 +1536,3 @@ void Hook_Game_Commit()
 		END_ASM(Hook_VMUpdateTime)
 	}
 }
-
-//#include <Skyrim/Forms/TESObjectCELL.h>
-//#include <Skyrim/BSCore/CRC.h>
-//class TESDataHolder
-//{
-//public:
-//	struct FormData
-//	{
-//		UInt32		formID;
-//		TESForm*	form;
-//		FormData*	next;
-//	};
-//	UInt32				unk00;
-//	UInt32				unk04;
-//	UInt32				m_count;
-//	UInt32				unk0C;
-//	UInt32				unk10;
-//	FormData*			m_end;
-//	UInt32				unk18;
-//	FormData*			m_start;
-
-//	static TESDataHolder* GetSingleton()
-//	{
-//		return *(TESDataHolder**)0x012E59D4;
-//	}
-//};
-
-//TESDataHolder * pDataHolder = TESDataHolder::GetSingleton();
-//TESDataHolder::FormData * formData = pDataHolder->m_start;
-//UInt32	dataCount = pDataHolder->m_count;
-
-//for (UInt32 iIndex = 0; iIndex < dataCount; ++iIndex)
-//{
-//	UInt32 formID = formData->formID;
-//	if (formID && (formID >> 24) < 0xFF && formData->form != nullptr && formData->form->formType == FormType::Cell)
-//	{
-//		TESObjectCELL* cell = reinterpret_cast<TESObjectCELL*>(formData->form);
-//		_MESSAGE(cell->GetName());
-//	}
-//	++formData;
-//}
