@@ -1054,6 +1054,8 @@ public:
 
 };
 
+
+
 void UICallBack_DropItem(FxDelegateArgs* pargs)
 {
 	InventoryMenu* inventory = reinterpret_cast<InventoryMenu*>(pargs->pThisMenu);
@@ -1311,15 +1313,7 @@ void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
 			{
 				ConsoleCommandUpdater::Register(command.c_str());
 			}
-			else if (std::regex_match(command, coc))
-			{
-				ConsoleManager *consoleManager = ConsoleManager::GetSingleton();
-				if (consoleManager)
-				{
-					consoleManager->Print("> This command is disabled when Console is in unpaused state.Please type \"sssv Console 0\" to disable Console at runtime.");
-				}
-			}
-			else if (false && std::regex_match(command, coc))  //slow speed,so don't use it in unpaused state.
+			else if (std::regex_match(command, coc))  //slow speed,so create a new thread to process it.
 			{
 				std::vector<std::string> sections;
 				std::regex pattern("\\b\\w+\\b", std::regex::icase);
@@ -1328,24 +1322,29 @@ void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
 					sections.push_back(it->str());
 				}
 				std::string destination = sections[1];
-				void* (*GetInteriorCell)(const char*) = (void* (*)(const char*))0x00451B60;
-				void* cell = GetInteriorCell(destination.c_str());
-				if (!cell)
-				{
-					SInt16 x = 0;
-					UInt16 y = 0;
-					TESDataHandler* pDataHandler = TESDataHandler::GetSingleton();//next codes are too slow...
-					void* worldSpace = pDataHandler->GetSpaceData(destination.c_str(), x, y);
-					if (worldSpace != nullptr)
+
+				auto fn = [=]()->bool {
+					void* (*GetInteriorCell)(const char*) = (void* (*)(const char*))0x00451B60;
+					void* cell = GetInteriorCell(destination.c_str());
+					if (!cell)
 					{
-						void* (__fastcall* GetExteriorCell)(void*, void*, SInt16, UInt16) = (void* (__fastcall*)(void*, void*, SInt16, UInt16))0x004F5330;
-						cell = GetExteriorCell(worldSpace, nullptr, x, y);
+						SInt16 x = 0;
+						UInt16 y = 0;
+						TESDataHandler* pDataHandler = TESDataHandler::GetSingleton();//next codes are too slow...
+						void* worldSpace = pDataHandler->GetSpaceData(destination.c_str(), x, y);
+						if (worldSpace != nullptr)
+						{
+							void* (__fastcall* GetExteriorCell)(void*, void*, SInt16, UInt16) = (void* (__fastcall*)(void*, void*, SInt16, UInt16))0x004F5330;
+							cell = GetExteriorCell(worldSpace, nullptr, x, y);
+						}
 					}
-				}
-				if (cell != nullptr)
-				{
-					ConsoleCommandUpdater::Register(command.c_str());
-				}
+					if (cell != nullptr)
+					{
+						ConsoleCommandUpdater::Register(command.c_str());
+					}
+					return true;
+				};
+				really_async(fn);
 			}
 			else
 			{
@@ -1358,6 +1357,9 @@ void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
 		}
 	}
 }
+
+
+
 
 void RegisterEventHandler()
 {
@@ -1503,3 +1505,43 @@ void Hook_Game_Commit()
 	}
 }
 
+//#include <Skyrim/Forms/TESObjectCELL.h>
+//#include <Skyrim/BSCore/CRC.h>
+//class TESDataHolder
+//{
+//public:
+//	struct FormData
+//	{
+//		UInt32		formID;
+//		TESForm*	form;
+//		FormData*	next;
+//	};
+//	UInt32				unk00;
+//	UInt32				unk04;
+//	UInt32				m_count;
+//	UInt32				unk0C;
+//	UInt32				unk10;
+//	FormData*			m_end;
+//	UInt32				unk18;
+//	FormData*			m_start;
+
+//	static TESDataHolder* GetSingleton()
+//	{
+//		return *(TESDataHolder**)0x012E59D4;
+//	}
+//};
+
+//TESDataHolder * pDataHolder = TESDataHolder::GetSingleton();
+//TESDataHolder::FormData * formData = pDataHolder->m_start;
+//UInt32	dataCount = pDataHolder->m_count;
+
+//for (UInt32 iIndex = 0; iIndex < dataCount; ++iIndex)
+//{
+//	UInt32 formID = formData->formID;
+//	if (formID && (formID >> 24) < 0xFF && formData->form != nullptr && formData->form->formType == FormType::Cell)
+//	{
+//		TESObjectCELL* cell = reinterpret_cast<TESObjectCELL*>(formData->form);
+//		_MESSAGE(cell->GetName());
+//	}
+//	++formData;
+//}
