@@ -3,8 +3,6 @@
 #include <Skyrim/Memory.h>
 #include <functional>
 
-class TaskDelegate;
-
 namespace PauseTaskInterface
 {
 	void Init();
@@ -44,7 +42,7 @@ public:
 	}
 
 	template <>
-	static void Register<TaskType::kType_Normal>(std::function<void(void)> callback)
+	static void Register<kType_Normal>(std::function<void(void)> callback)
 	{
 		const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
 		const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
@@ -56,14 +54,14 @@ public:
 	}
 
 	template <>
-	static void Register<TaskType::kType_Pause>(std::function<void(void)> callback)
+	static void Register<kType_Pause>(std::function<void(void)> callback)
 	{
 		CallbackDelegate *delg = new CallbackDelegate(std::move(callback));
 		PauseTaskInterface::AddTask(reinterpret_cast<TaskDelegate*>(delg));
 	}
 
 	template <>
-	static void Register<TaskType::kType_UI>(std::function<void(void)> callback)
+	static void Register<kType_UI>(std::function<void(void)> callback)
 	{
 		const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
 		const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);

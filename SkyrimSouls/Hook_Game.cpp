@@ -94,7 +94,7 @@ public:
 						if (ref->Is(FormType::Character) && !ref->IsDead(false) && lootMode == 2 && settings.m_fadeOutDist >= iActivateDist)
 						{
 #ifdef DEBUG_LOG
-							_MESSAGE("Pickpocketing...");
+							_MESSAGE("PICKPOCKETING...");
 							float distance = g_thePlayer->GetDistance(ref, true, false);
 							_MESSAGE("formType: %d    formName: %s", (UInt32)ref->formType, ref->GetFullName());
 #endif

@@ -4,6 +4,7 @@
 #include "Wrapper.h"
 #include "Console.h"
 #include "Task.h"
+#include "Settings.h"
 #include "Hook_Game.h"
 
 //========================================================

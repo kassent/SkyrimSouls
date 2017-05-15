@@ -1,7 +1,7 @@
 #include "Console.h"
 #include "Settings.h"
-#include "Wrapper.h"
 #include <SKSE/CommandTable.h>
+#include <SKSE/GameMenus.h>
 #include <SKSE/SafeWrite.h>
 #include <Skyrim/Menus/Console.h>
 #include <Skyrim/Forms/PlayerCharacter.h>
