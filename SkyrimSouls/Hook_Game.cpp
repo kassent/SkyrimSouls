@@ -29,7 +29,6 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <functional>
 
 #define STDFN __stdcall
 
@@ -414,8 +413,9 @@ public:
 						//bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.UpdatePages", &result, nullptr, 0);
 						bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0); //只能翻一页。
 						//bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.UpdatePages", &result, nullptr, 0);
-						bookMenu->bookView->SetPause(true);
 					}
+					bookMenu->bookView->SetPause(true);
+
 					bookMenu->TurnPage(m_direction);
 					if (bookMenu->flags & IMenu::kType_PauseGame)
 					{
@@ -550,16 +550,23 @@ public:
 				}
 				else if (msgData->unk0C == input->accept || msgData->unk0C == input->cancel)
 				{
-					if (!*(bool*)0x1B3E5D4 || this->disableCloseMsg)
+					bool animationVariable = false;
+					this->GetAnimationVariableBool("bPageFlipping", animationVariable);//是否正在翻页中。
+					if (!*(bool*)0x1B3E5D4 || this->disableCloseMsg || animationVariable)
 						return 0;
 					GlobalBookData* data = GlobalBookData::GetSingleton();
 					if (msgData->unk0C == input->accept && data->reference != nullptr)
 					{
 						g_thePlayer->PickUpItem(data->reference, 1, false, true);
 					}
-					this->SendAnimationEvent("SoundPlay");
-					this->SendAnimationEvent("CloseOut");
-					mm->CloseMenu(holder->bookMenu);
+					//this->SendAnimationEvent("SoundPlay");
+					//this->SendAnimationEvent("CloseOut");
+					auto fn = [=]() {
+						GFxValue result;
+						this->bookView->Invoke("BookMenu.BookMenuInstance.PrepForClose", &result, nullptr, 0);
+						mm->CloseMenu(holder->bookMenu);
+					};
+					CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
 				}
 				return 1;
 			}
@@ -650,6 +657,10 @@ public:
 		//fnReceiveEvent = SafeWrite32(0x010E3A98 + 0x01 * 4, &ReceiveEvent_Hook);
 
 		WriteRelCall(0x008464AC, GetFnAddr(&BookMenu::SetBookText_Hook));
+
+		SafeWrite8(0x0084672B, 0x90);
+
+		SafeWrite32(0x0084672C, 0x90909090);
 
 		//WriteRelCall(0x008466D0, GetFnAddr(&BookMenu::CreateBookLayout_Hook));
 
@@ -1005,37 +1016,6 @@ SleepWaitMenu::FnProcessMessage	SleepWaitMenu::fnProcessMessage = nullptr;
 class MessageBoxMenu : public IMenu
 {
 public:
-	class CallbackDelegate : public TaskDelegate //create a template in future.
-	{
-	public:
-		TES_FORMHEAP_REDEFINE_NEW();
-
-		enum TaskType
-		{
-			kType_Normal,
-			kType_Pause,
-			kType_UI
-		};
-
-		CallbackDelegate(std::function<void(void)>&& delegate) : m_callback(delegate)
-		{
-		}
-		void Run() override
-		{
-			m_callback();
-		}
-		void Dispose() override
-		{
-			delete this;
-		}
-		static void Register(std::function<void(void)>&& callback)
-		{
-			CallbackDelegate *delg = new CallbackDelegate(std::forward<std::function<void(void)>>(callback));
-			PauseTaskInterface::AddTask(delg);
-		}
-	private:
-		std::function<void(void)>		m_callback;
-	};
 
 	static void UICallback_ButtonPress(FxDelegateArgs* pargs)
 	{
@@ -1071,7 +1051,7 @@ public:
 				MenuManager* mm = MenuManager::GetSingleton();
 				msgMenu->flags |= IMenu::kType_PauseGame;
 				mm->numPauseGame += 1;
-				CallbackDelegate::Register(std::move(fn));
+				CallbackDelegate::Register<CallbackDelegate::kType_Pause>(fn);
 			}
 			else
 			{
