@@ -619,7 +619,7 @@ public:
 				if (mm->IsMenuOpen(stringHolder->bookMenu))
 				{
 					BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
-					if (bookMenu != nullptr && (bookMenu->flags & IMenu::kType_PauseGame))
+					if (bookMenu != nullptr)
 					{
 						bookMenu->bookView->SetPause(true);
 						if (bookMenu->bookView->GetVariableDouble("BookMenu.BookMenuInstance.iPaginationIndex") != -1.00f)
@@ -630,7 +630,7 @@ public:
 						}
 						if (mm->numPauseGame && (bookMenu->flags & IMenu::kType_PauseGame))
 						{
-							bookMenu->bookView->SetPause(true);
+							//bookMenu->bookView->SetPause(true);
 							mm->numPauseGame -= 1;
 							bookMenu->flags &= ~IMenu::kType_PauseGame;
 							if (!mm->numPauseGame)
