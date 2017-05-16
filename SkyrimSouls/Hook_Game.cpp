@@ -38,7 +38,7 @@ class MenuOpenCloseEventHandler : public BSTEventSink<MenuOpenCloseEvent>
 public:
 	static SInt32							unpausedCount;
 	//127248C		disable/enable save?
-	//12C2410		float,time multipler?
+	//12C2414		float,time multipler?
 	virtual EventResult ReceiveEvent(MenuOpenCloseEvent *evn, BSTEventSource<MenuOpenCloseEvent> *src) override
 	{
 		auto it = settings.m_menuConfig.find(std::string(evn->menuName.c_str()));
