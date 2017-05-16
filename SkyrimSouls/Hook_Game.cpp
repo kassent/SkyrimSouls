@@ -613,7 +613,7 @@ public:
 		{
 			this->SetBookText();
 
-			auto fn = []()->bool {
+			auto fn = [](){
 				UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
 				MenuManager* mm = MenuManager::GetSingleton();
 				if (mm->IsMenuOpen(stringHolder->bookMenu))
@@ -621,8 +621,14 @@ public:
 					BookMenu* bookMenu = static_cast<BookMenu*>(mm->GetMenu(stringHolder->bookMenu));
 					if (bookMenu != nullptr && (bookMenu->flags & IMenu::kType_PauseGame))
 					{
-						std::this_thread::sleep_for(std::chrono::milliseconds(150));
-						if (mm->numPauseGame)
+						bookMenu->bookView->SetPause(true);
+						if (bookMenu->bookView->GetVariableDouble("BookMenu.BookMenuInstance.iPaginationIndex") != -1.00f)
+						{
+							GFxValue result;
+							bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0);
+							bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0);
+						}
+						if (mm->numPauseGame && (bookMenu->flags & IMenu::kType_PauseGame))
 						{
 							bookMenu->bookView->SetPause(true);
 							mm->numPauseGame -= 1;
@@ -634,19 +640,18 @@ public:
 								event.menuMode = 0;
 
 								mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
-								typedef void(__fastcall * Fn)(void*, void*); 
+								typedef void(__fastcall * Fn)(void*, void*);
 								Fn ReleaseObject = (Fn)0xA511B0;
 								ReleaseObject(&event, nullptr);
 							}
 						}
 					}
 				}
-				return true;
 			};
 			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
 			if (settings.m_menuConfig[stringHolder->bookMenu.c_str()])
 			{
-				really_async(fn);
+				CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
 			}
 		}
 	}
@@ -697,6 +702,7 @@ public:
 static_assert(sizeof(BookMenu) == 0x60, "sizeof(BookMenu) != 0x60");
 BookMenu::FnProcessMessage	BookMenu::fnProcessMessage = nullptr;
 BookMenu::FnReceiveEvent	BookMenu::fnReceiveEvent = nullptr;
+
 
 
 class LockpickingMenu : public IMenu
