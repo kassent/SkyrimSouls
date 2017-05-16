@@ -788,6 +788,7 @@ public:
 DialogueMenuEx::FnProcessMessage	DialogueMenuEx::fnProcessMessage = nullptr;
 
 
+
 class InventoryMenuEx : public IMenu
 {
 public:
@@ -878,6 +879,7 @@ public:
 InventoryMenuEx::FnProcessMessage	InventoryMenuEx::fnProcessMessage = nullptr;
 
 
+
 class MagicMenuEx : public IMenu
 {
 public:
@@ -920,6 +922,7 @@ public:
 	}
 };
 MagicMenuEx::FnProcessMessage	MagicMenuEx::fnProcessMessage = nullptr;
+
 
 
 class SleepWaitMenu : public IMenu
@@ -1020,6 +1023,7 @@ static_assert(sizeof(SleepWaitMenu) == 0x38, "sizeof(SleepWaitMenu) != 0x38");
 SleepWaitMenu::FnProcessMessage	SleepWaitMenu::fnProcessMessage = nullptr;
 
 
+
 class MessageBoxMenu : public IMenu
 {
 public:
@@ -1072,6 +1076,39 @@ public:
 		SafeWrite32(0x0087B34C, (UInt32)UICallback_ButtonPress);
 	}
 
+};
+
+
+
+class ContainerMenuEx : public IMenu
+{
+public:
+	struct InventoryData
+	{
+		void							* unk00;			// 00
+		GFxValue						categoryListRoot;	// 08
+		GFxValue						unk18;				// 18
+		BSTArray<StandardItemData *>	items;				// 28
+		bool							selected;			// 34
+															// 52 bool isUpdating? 
+		DEFINE_MEMBER_FN(GetSelectedItemData, StandardItemData*, 0x00841D90);
+		DEFINE_MEMBER_FN(Update, void, 0x00841E70, TESObjectREFR* owner);
+	};
+
+	static void UICallback_ItemTransfer(FxDelegateArgs* pargs)  //sub_84B270
+	{
+
+	}
+
+	static void UICallback_EquipItem(FxDelegateArgs* pargs)  //sub_84ADB0
+	{
+
+	}
+
+	static void UICallback_TakeAllItems(FxDelegateArgs* pargs)  //loc_84C0F0
+	{
+
+	}
 };
 
 
@@ -1128,6 +1165,7 @@ void UICallBack_DropItem(FxDelegateArgs* pargs)
 }
 
 
+
 void UICallBack_CloseTweenMenu(FxDelegateArgs* pargs)
 {
 	PlayerCamera* camera = PlayerCamera::GetSingleton();//kCameraState_Free
@@ -1140,6 +1178,7 @@ void UICallBack_CloseTweenMenu(FxDelegateArgs* pargs)
 	IMenu* inventoryMenu = reinterpret_cast<IMenu*>(pargs->pThisMenu);
 	*((bool*)inventoryMenu + 0x51) = 1;
 }
+
 
 
 void UICallBack_SelectItem(FxDelegateArgs* pargs)
@@ -1213,6 +1252,7 @@ void UICallBack_SelectItem(FxDelegateArgs* pargs)
 }
 
 
+
 void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 {
 	GFxValue* args = pargs->args; //一个参数数组 GFxVaue[5];
@@ -1247,6 +1287,7 @@ void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 		}
 	}
 }
+
 
 
 void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
