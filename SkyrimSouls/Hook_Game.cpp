@@ -91,7 +91,7 @@ public:
 						UInt32& lootMode = *(UInt32*)0x01B3E6FC;
 						UInt32 iActivateDist = g_gameSettingCollection->Get("iActivatePickLength")->data.u32 + 50;//iActivatePickLength
 
-						if (ref->Is(FormType::Character) && !ref->IsDead(false) && lootMode == 2 && settings.m_fadeOutDist >= iActivateDist)
+						if (settings.m_fadeOutDist >= iActivateDist && ref->Is(FormType::Character) && !ref->IsDead(false) && lootMode == 2)
 						{
 #ifdef DEBUG_LOG
 							_MESSAGE("PICKPOCKETING...");
