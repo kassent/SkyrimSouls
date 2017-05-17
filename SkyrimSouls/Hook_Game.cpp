@@ -24,6 +24,7 @@
 #include <Skyrim/FileIO/BGSSaveLoadManager.h>
 #include <Skyrim/BSMain/Setting.h>
 #include <Skyrim/FileIO/TESDataHandler.h>
+//#include <Skyrim/BSCore/BSTArray.h>
 
 #include <regex>
 #include <vector>
@@ -262,6 +263,7 @@ public:
 };
 
 
+
 class FavoritesMenu : public IMenu,
 					  public MenuEventHandler
 {
@@ -360,6 +362,7 @@ public:
 	// ....
 };
 static_assert(sizeof(FavoritesMenu) == 0x48, "sizeof(FavoritesMenu) != 0x48");
+
 
 
 class BookMenu : public IMenu,
@@ -763,6 +766,7 @@ public:
 LockpickingMenu::FnProcessMessage	LockpickingMenu::fnProcessMessage = nullptr;
 
 
+
 class DialogueMenuEx :public IMenu
 {
 public:
@@ -866,7 +870,18 @@ public:
 				}
 			}
 		}
-
+		else if (msg->type == UIMessage::kMessage_Open)
+		{
+			UIStringHolder* holder = UIStringHolder::GetSingleton();
+			MenuManager* mm = MenuManager::GetSingleton();
+			if (mm->IsMenuOpen(holder->tweenMenu))
+			{
+				PlayerCamera* camera = PlayerCamera::GetSingleton();//kCameraState_Free
+				camera->ResetCamera();
+				mm->CloseMenu(holder->tweenMenu);
+				*((bool*)this + 0x51) = true;
+			}
+		}
 		return result;
 	}
 
@@ -907,6 +922,17 @@ public:
 						view->Invoke("_root.Menu_mc.onExitMenuRectClick", &result, nullptr, 0);
 					}
 				}
+			}
+		}
+		else if (msg->type == UIMessage::kMessage_Open)
+		{
+			MenuManager* mm = MenuManager::GetSingleton();
+			UIStringHolder* holder = UIStringHolder::GetSingleton();
+			if (mm->IsMenuOpen(holder->tweenMenu))
+			{
+				PlayerCamera* camera = PlayerCamera::GetSingleton();//kCameraState_Free
+				camera->ResetCamera();
+				mm->CloseMenu(holder->tweenMenu);
 			}
 		}
 		return result;
@@ -1095,21 +1121,150 @@ public:
 		DEFINE_MEMBER_FN(Update, void, 0x00841E70, TESObjectREFR* owner);
 	};
 
-	static void UICallback_ItemTransfer(FxDelegateArgs* pargs)  //sub_84B270
-	{
 
+	struct CarryWeightData //for follower,to calculate actual item count follower can burden.
+	{
+		float	pcCurCarryWeight;  //0
+		float	pcMaxCarryWeight;  //infinite
+		float	refCurCarryWeight;
+		float	refMaxCarryWeight;
+		DEFINE_MEMBER_FN(ctor, CarryWeightData*, 0x008499D0, void*);
+		DEFINE_MEMBER_FN(CalculateItemCount, bool, 0x008499D0, TESForm*, UInt32 itemCount, bool direction, UInt32& result);
+	};
+
+	static void UICallback_TransferItem(FxDelegateArgs* pargs)  //sub_84B270
+	{
+		if (pargs->pThisMenu != nullptr)
+		{
+			ContainerMenuEx* containerMenu = static_cast<ContainerMenuEx*>(pargs->pThisMenu);
+			auto itemData = containerMenu->inventoryData->GetSelectedItemData();
+			InventoryEntryData* objDesc = (itemData != nullptr) ? itemData->objDesc : nullptr;
+			if (objDesc != nullptr)
+			{
+				UInt32 itemCount = static_cast<UInt32>(pargs->args[0].GetNumber());
+				bool direction = pargs->args[1].GetBool();
+
+				CarryWeightData carryWeightData;
+				(&carryWeightData)->ctor((void*)0x01B3E764);
+
+				UInt32 actualCount = 0;
+				(&carryWeightData)->CalculateItemCount(objDesc->baseForm, itemCount, direction, actualCount);
+
+				UInt32& lootMode = *(UInt32*)0x01B3E6FC;
+				if (containerMenu->TransferItem(objDesc, actualCount, direction))
+				{
+					containerMenu->inventoryData->Update(g_thePlayer);
+				}
+				else if(lootMode == 2)//steal
+				{
+					MenuManager* mm = MenuManager::GetSingleton();
+					UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+					mm->CloseMenu(stringHolder->containerMenu);
+				}
+			}
+		}
 	}
 
 	static void UICallback_EquipItem(FxDelegateArgs* pargs)  //sub_84ADB0
 	{
+		if (pargs->pThisMenu != nullptr)
+		{
+			ContainerMenuEx* containerMenu = static_cast<ContainerMenuEx*>(pargs->pThisMenu);
+			auto itemData = containerMenu->inventoryData->GetSelectedItemData();
+			InventoryEntryData* objDesc = (itemData != nullptr) ? itemData->objDesc : nullptr;
+			if (objDesc != nullptr)
+			{
+				GFxValue* args = pargs->args;
+				BGSEquipSlot* slot = nullptr;
 
+				if (args->GetNumber() == 0.0f)
+				{
+					slot = (containerMenu->unk71) ? GetRightHandSlot() : GetLeftHandSlot();
+				}
+				else if (args->GetNumber() == 1.0f)
+				{
+					slot = (containerMenu->unk71) ? GetLeftHandSlot() : GetRightHandSlot();
+				}
+
+				UInt32& lootMode = *(UInt32*)0x01B3E6FC;
+
+				if (pargs->numArgs <= 1 || pargs->args[1].GetType() != GFxValue::ValueType::VT_Number)
+				{
+					containerMenu->EquipItem(slot, objDesc);
+				}
+				else if (objDesc->baseForm->formType == FormType::Book || containerMenu->TransferItem(objDesc, static_cast<UInt32>(pargs->args[1].GetNumber()), true))
+				{
+					TESForm* form = objDesc->baseForm;
+					if (form->formType == FormType::Ammo)
+					{
+						if (!containerMenu->unk71)
+						{
+							(&containerMenu->unk54)->UpdataAmmoInfo(itemData);
+						}
+						containerMenu->inventoryData->Update(g_thePlayer);
+					}
+					else if (form->formType == FormType::Book)
+					{
+						containerMenu->EquipItem(slot, objDesc);
+					}
+					else
+					{
+						UInt32 itemCount = itemData->GetCount();
+						InventoryEntryData entryData(form, itemCount);
+						containerMenu->EquipItem(slot, &entryData);
+						(&entryData)->Release();
+					}
+				}
+				else if (lootMode == 2 && containerMenu->unk71)
+				{
+					MenuManager* mm = MenuManager::GetSingleton();
+					UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+					mm->CloseMenu(stringHolder->containerMenu);
+				}
+			}
+		}
 	}
 
 	static void UICallback_TakeAllItems(FxDelegateArgs* pargs)  //loc_84C0F0
 	{
-
+		if (pargs->pThisMenu != nullptr)
+		{
+			ContainerMenuEx* containerMenu = static_cast<ContainerMenuEx*>(pargs->pThisMenu);
+			containerMenu->TakeAllItem(true);
+		}
 	}
+
+	struct Data54
+	{
+		TESForm*		form;
+		void*			extraList;
+		UInt32			unk08;
+		DEFINE_MEMBER_FN(UpdataAmmoInfo, void, 0x008685E0, StandardItemData*);
+	};
+
+	UInt32						unk1C;
+	GFxValue					root;
+	InventoryData*				inventoryData;
+	UInt32						unk34;
+	UInt32						unk38;
+	BSTArray<void*>				unk3C; //plyaer inventory data?
+	BSTArray<void*>				unk48; //container inventory data?
+	Data54						unk54;    //????????????????
+	UInt32						unk60;
+	bool						unk64;
+	UInt32						unk68;
+	UInt32						unk6C;
+	bool						unk70;
+	bool						unk71;
+	UInt32						unk74;
+
+	DEFINE_MEMBER_FN(ctor, ContainerMenuEx*, 0x008490C0);
+	DEFINE_MEMBER_FN(TransferItem, bool, 0x0084A9B0, InventoryEntryData*, UInt32 itemCount, bool direction);
+	DEFINE_MEMBER_FN(EquipItem, void, 0x00849EC0, BGSEquipSlot* slot, InventoryEntryData* objDesc);
+	DEFINE_MEMBER_FN(TakeAllItem, void, 0x0084C0F0, bool unk);
 };
+static_assert(sizeof(ContainerMenuEx) == 0x78, "sizeof(ContainerMenuEx) != 0x78");
+
 
 
 void UICallBack_DropItem(FxDelegateArgs* pargs)
