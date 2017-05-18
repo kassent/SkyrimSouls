@@ -124,6 +124,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)Skyrim\include;$(SolutionDir)SKSE\include;$(SolutionDir)mruby\include;</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>SKSE/DebugLog.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

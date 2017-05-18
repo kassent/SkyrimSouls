@@ -872,6 +872,16 @@ public:
 		}
 		else if (msg->type == UIMessage::kMessage_Open)
 		{
+			MenuManager* mm = MenuManager::GetSingleton();
+			UIStringHolder* holder = UIStringHolder::GetSingleton();
+			if (mm->IsMenuOpen(holder->tweenMenu))
+			{
+				GFxMovieView* view = mm->GetMovieView(holder->tweenMenu);
+				view->SetVisible(false);
+			}
+		}
+		else if (msg->type == UIMessage::kMessage_Close)
+		{
 			UIStringHolder* holder = UIStringHolder::GetSingleton();
 			MenuManager* mm = MenuManager::GetSingleton();
 			if (mm->IsMenuOpen(holder->tweenMenu))
@@ -925,6 +935,16 @@ public:
 			}
 		}
 		else if (msg->type == UIMessage::kMessage_Open)
+		{
+			MenuManager* mm = MenuManager::GetSingleton();
+			UIStringHolder* holder = UIStringHolder::GetSingleton();
+			if (mm->IsMenuOpen(holder->tweenMenu))
+			{
+				GFxMovieView* view = mm->GetMovieView(holder->tweenMenu);
+				view->SetVisible(false);
+			}
+		}
+		else if (msg->type == UIMessage::kMessage_Close)
 		{
 			MenuManager* mm = MenuManager::GetSingleton();
 			UIStringHolder* holder = UIStringHolder::GetSingleton();
@@ -1106,6 +1126,36 @@ public:
 
 
 
+
+namespace {
+
+	static const UInt32 * g_TlsIndexPtr = (UInt32 *)0x01BBEB54;
+
+	struct TLSData
+	{
+		// thread local storage
+
+		UInt32	pad000[(0x4AC - 0x000) >> 2];   // 000
+		volatile UInt32	state;                  // 4AC
+	};
+
+	static TLSData * GetTLSData(void)
+	{
+		UInt32 TlsIndex = *g_TlsIndexPtr;
+		TLSData * data = nullptr;
+
+		__asm {
+			mov		ecx, [TlsIndex]
+			mov		edx, fs:[2Ch]	// linear address of thread local storage array
+			mov		eax, [edx + ecx * 4]
+			mov[data], eax
+		}
+
+		return data;
+	}
+
+}
+
 class ContainerMenuEx : public IMenu
 {
 public:
@@ -1113,12 +1163,13 @@ public:
 	{
 		void							* unk00;			// 00
 		GFxValue						categoryListRoot;	// 08
-		GFxValue						unk18;				// 18
+		GFxValue						ui;				// 18
 		BSTArray<StandardItemData *>	items;				// 28
 		bool							selected;			// 34
 															// 52 bool isUpdating? 
 		DEFINE_MEMBER_FN(GetSelectedItemData, StandardItemData*, 0x00841D90);
 		DEFINE_MEMBER_FN(Update, void, 0x00841E70, TESObjectREFR* owner);
+		DEFINE_MEMBER_FN(UpdateItemData, void, 0x0084AFA0, void* unk);
 	};
 
 
@@ -1128,9 +1179,207 @@ public:
 		float	pcMaxCarryWeight;  //infinite
 		float	refCurCarryWeight;
 		float	refMaxCarryWeight;
+
 		DEFINE_MEMBER_FN(ctor, CarryWeightData*, 0x008499D0, void*);
-		DEFINE_MEMBER_FN(CalculateItemCount, bool, 0x008499D0, TESForm*, UInt32 itemCount, bool direction, UInt32& result);
+		DEFINE_MEMBER_FN(CalculateItemCount, bool, 0x008489A0, TESForm*, UInt32 itemCount, bool direction, UInt32& result);
 	};
+
+	typedef UInt32(ContainerMenuEx::*FnProcessMessage)(UIMessage*);
+
+	static FnProcessMessage fnProcessMessage;
+
+	UInt32 ProcessMessage_Hook(UIMessage* msg)
+	{
+		if (msg->type == UIMessage::kMessage_UpdateInventory && false)
+		{
+			auto invUpdateData = static_cast<InventoryUpdateData*>(msg->data);
+			if (invUpdateData != nullptr)
+			{
+				RefHandle handle = invUpdateData->refHandle;
+				TESForm* form = invUpdateData->form;
+				if (handle == *(RefHandle*)0x01B2E8E8 || handle == *(RefHandle*)0x01B3E764)
+				{
+					if (form != nullptr)
+					{
+						if (!((bool(__cdecl*)(BSTArray<void*>*, TESForm**))0x008431B0)(&(this->unk3C), &form))
+						{
+							form = invUpdateData->form;
+							((void(__cdecl*)(BSTArray<void*>*, TESForm**))0x0055B020)(&(this->unk3C), &form);
+						}
+						if (handle == *(RefHandle*)0x01B2E8E8)
+						{
+							form = invUpdateData->form;
+							if (form->formType == FormType::Armor)
+							{
+								void* unkData1 = g_thePlayer->sub_4D6630();
+								void* unkData2 = ((void* (__cdecl*)(TESForm*))0x447CA0)(form);
+								bool(__fastcall* sub_447C20)(void*, void*, void*) = (bool(__fastcall*)(void*, void*, void*))0x00447C20;
+								if (sub_447C20(unkData2, nullptr, unkData1) && (((g_thePlayer->flags08 >> 5) & 7) >= 3))
+								{
+									*(bool*)0x01B3E7F0 = true;
+								}
+							}
+						}
+					}
+					else if(false)
+					{
+						//((void(__fastcall*)(void*, void*))0x0084B720)(this, nullptr);
+						//Hook_Update();
+
+						if (!this->unk6C)
+						{
+							if (*(UInt32*)((char*)this + 0x44))
+							{
+								((void(__fastcall*)(void*, void*))0x0084A710)(this, nullptr);
+							}
+							else
+							{
+								((void(__fastcall*)(void*, void*))0x0084B020)(this, nullptr);
+							}
+							((void(__fastcall*)(void*, void*))0x0084B120)(this, nullptr);
+							if (*(UInt32*)((char*)this + 0x3C))
+							{
+								void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+								sub_A49D90(&(this->unk3C), nullptr);
+								*(UInt32*)((char*)this + 0x44) = 0;
+							}
+
+							auto updater = [=]()->bool {
+								ContainerMenuEx* containerMenu = this;
+								void* unknownData = FormHeap_Allocate(0x124);
+								((void(__fastcall*)(void*, void*))0x008687D0)(unknownData, nullptr);
+								((void(__fastcall*)(void*, void*, void*))0x0084AFA0)((this->inventoryData), nullptr, unknownData);
+								if (*(UInt32*)unknownData)
+								{
+									void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+									sub_A49D90(unknownData, nullptr);
+								}
+								RefHandle tempHandle = handle;
+								auto fn = [=]() {
+									CarryWeightData carryWeightData;
+									(&carryWeightData)->ctor((void*)0x01B3E764);
+
+									struct Data08
+									{
+										RefHandle	handle;
+										bool		unk04;
+									};
+									Data08 unkData;
+									unkData.handle = *(RefHandle*)0x01B3E764;
+									unkData.unk04 = (*(UInt32*)0x01B3E6FC == 3);
+
+									if (!this->inventoryData->selected)
+									{
+										((void(__fastcall*)(void*, void*, CarryWeightData*))0x00848F90)(&(this->inventoryData->items), nullptr, &carryWeightData);
+									}
+									if (!this->inventoryData->selected)
+									{
+										((void(__fastcall*)(void*, void*, void*))0x0084A4A0)(&(this->inventoryData->items), nullptr, &unkData);
+									}
+									void* arrDatas = FormHeap_Allocate(0x124);
+									((void(__fastcall*)(void*, void*))0x00868DA0)(arrDatas, nullptr);
+									if (!this->inventoryData->selected)
+									{
+										((void(__fastcall*)(void*, void*, void*))0x008420D0)(&(this->inventoryData->items), nullptr, arrDatas);
+									}
+									((void(__fastcall*)(void*, void*))0x008684A0)(arrDatas, nullptr);
+									if (!this->inventoryData->selected)
+									{
+										((void(__fastcall*)(void*, void*, void*, void*))0x00869180)(&(this->unk54), nullptr, this->GetMovieView(), this->inventoryData);
+									}
+									((void(__fastcall*)(void*, void*))0x00841D30)(this->inventoryData, nullptr);
+
+									if (*(UInt32*)arrDatas)
+									{
+										void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+										sub_A49D90(arrDatas, nullptr);
+										*(UInt32*)((char*)arrDatas + 8) = 0;
+									}
+									FormHeap_Free(arrDatas);
+									FormHeap_Free(unknownData);
+
+									((void(__fastcall*)(void*, void*))0x00848EC0)(this, nullptr);
+									if (handle == *(RefHandle*)0x01B2E8E8)
+									{
+										if (g_thePlayer->processManager->Update_Unk0())
+										{
+											//g_thePlayer->processManager->UpdateEquipment();
+											if (*(bool*)0x01B3E7F0)
+											{
+												g_thePlayer->sub_73D9A0();
+											}
+										}
+										*(bool*)0x01B3E7F0 = false;
+									}
+
+								};
+								CallbackDelegate::Register<CallbackDelegate::kType_UI>(fn);
+								return true;
+							};
+							really_async(updater);
+						}
+						else
+						{
+							((void(__fastcall*)(void*, void*))0x0084B720)(this, nullptr);
+							((void(__fastcall*)(void*, void*))0x00848EC0)(this, nullptr);
+							if (handle == *(RefHandle*)0x01B2E8E8)
+							{
+								if (g_thePlayer->processManager->Update_Unk0())
+								{
+									//g_thePlayer->processManager->UpdateEquipment();
+									if (*(bool*)0x01B3E7F0)
+									{
+										g_thePlayer->sub_73D9A0();
+									}
+								}
+								*(bool*)0x01B3E7F0 = false;
+							}
+						}
+
+
+
+
+						//std::vector<GFxValue> args;
+						//args.reserve(2);
+						//args.emplace_back(false);
+						//args.emplace_back(false);
+						//GFxMovieView* view = this->GetMovieView();
+
+						//if (args.empty())
+						//	view->Invoke("_root.Menu_mc.InventoryLists_mc.ShowItemsList", nullptr, nullptr, 0);
+						//else
+						//	view->Invoke("_root.Menu_mc.InventoryLists_mc.ShowItemsList", nullptr, &args[0], args.size());
+						_MESSAGE("WWWWWW");
+						//((void(__fastcall*)(void*, void*))0x00848EC0)(this, nullptr);
+						//_MESSAGE("WWWWWWWWWWWWWWW");
+						//if (handle == *(RefHandle*)0x01B2E8E8)
+						//{
+						//	if (g_thePlayer->processManager->Update_Unk0())
+						//	{
+						//		//g_thePlayer->processManager->UpdateEquipment();
+						//		if (*(bool*)0x01B3E7F0)
+						//		{
+						//			g_thePlayer->sub_73D9A0();
+						//		}
+						//	}
+						//	*(bool*)0x01B3E7F0 = false;
+						//}
+					}
+				}
+			}
+			_MESSAGE("VTBL: %08X", *(UInt32*)invUpdateData);//010E8D14
+			_MESSAGE("RefHandle: %08X    Form: %p", invUpdateData->refHandle, invUpdateData->form);
+			return 0;
+		}
+#ifdef DEBUG_LOG
+		else if (msg->type == UIMessage::kMessage_Message)
+		{
+			BSUIMessageData* msgData = static_cast<BSUIMessageData*>(msg->data);
+			_MESSAGE("msgData: %s", msgData->unk0C.c_str());
+		}
+#endif
+		return (this->*fnProcessMessage)(msg);
+	}
 
 	static void UICallback_TransferItem(FxDelegateArgs* pargs)  //sub_84B270
 	{
@@ -1138,6 +1387,13 @@ public:
 		{
 			ContainerMenuEx* containerMenu = static_cast<ContainerMenuEx*>(pargs->pThisMenu);
 			auto itemData = containerMenu->inventoryData->GetSelectedItemData();
+
+			for (auto & data : containerMenu->inventoryData->items)
+			{
+				_MESSAGE("NAME: %s   COUNT: %d   VALUE: %d", data->GetName(), data->GetCount(), data->objDesc->GetValue());
+			}
+			_MESSAGE("");
+
 			InventoryEntryData* objDesc = (itemData != nullptr) ? itemData->objDesc : nullptr;
 			if (objDesc != nullptr)
 			{
@@ -1150,16 +1406,116 @@ public:
 				UInt32 actualCount = 0;
 				(&carryWeightData)->CalculateItemCount(objDesc->baseForm, itemCount, direction, actualCount);
 
-				UInt32& lootMode = *(UInt32*)0x01B3E6FC;
-				if (containerMenu->TransferItem(objDesc, actualCount, direction))
+				auto processTransfer = [=]() {
+					UInt32& lootMode = *(UInt32*)0x01B3E6FC;
+					if (containerMenu->TransferItem(objDesc, actualCount, direction))
+					{
+						containerMenu->inventoryData->selected = true;
+
+						if (*(UInt32*)((char*)containerMenu + 0x44))
+						{
+							((void(__fastcall*)(void*, void*))0x0084A710)(containerMenu, nullptr);
+						}
+						else
+						{
+							((void(__fastcall*)(void*, void*))0x0084B020)(containerMenu, nullptr);
+						}
+						((void(__fastcall*)(void*, void*))0x0084B120)(containerMenu, nullptr);
+
+						if (*(UInt32*)((char*)containerMenu + 0x3C))
+						{
+							//void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+							((void(__fastcall*)(void*, void*))0x00A49D90)(&(containerMenu->unk3C), nullptr);
+							*(UInt32*)((char*)containerMenu + 0x44) = 0;
+						}
+
+						auto fn = [=]()->bool {
+							TLSData* tlsData = GetTLSData();
+							UInt32 oldState = tlsData->state;
+							tlsData->state = 0x43;
+
+							void* dataBuffer = FormHeap_Allocate(0x124);
+
+							((void(__fastcall*)(void*, void*))0x008687D0)(dataBuffer, nullptr);
+							((void(__fastcall*)(void*, void*, void*))0x0084AFA0)((containerMenu->inventoryData), nullptr, dataBuffer);
+							if (*(UInt32*)dataBuffer)
+							{
+								void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+								sub_A49D90(dataBuffer, nullptr);
+							}
+
+							FormHeap_Free(dataBuffer);
+
+							tlsData->state = oldState;
+
+							for (auto & data : containerMenu->inventoryData->items)
+							{
+								_MESSAGE("NAME: %s   COUNT: %d   VALUE: %d", data->GetName(), data->GetCount(), data->objDesc->GetValue());
+							}
+							_MESSAGE("");
+
+							containerMenu->inventoryData->Update(g_thePlayer);
+
+	
+							return true;
+						};
+						really_async(fn);
+						//containerMenu->inventoryData->selected = true;
+
+						//if (*(UInt32*)((char*)containerMenu + 0x44))
+						//{
+						//	((void(__fastcall*)(void*, void*))0x0084A710)(containerMenu, nullptr);
+						//}
+						//else
+						//{
+						//	((void(__fastcall*)(void*, void*))0x0084B020)(containerMenu, nullptr);
+						//}
+						//((void(__fastcall*)(void*, void*))0x0084B120)(containerMenu, nullptr);
+
+						//if (*(UInt32*)((char*)containerMenu + 0x3C))
+						//{
+						//	//void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+						//	((void(__fastcall*)(void*, void*))0x00A49D90)(&(containerMenu->unk3C), nullptr);
+						//	*(UInt32*)((char*)containerMenu + 0x44) = 0;
+						//}
+
+						//void* dataBuffer = FormHeap_Allocate(0x124);
+
+						//((void(__fastcall*)(void*, void*))0x008687D0)(dataBuffer, nullptr);
+						//((void(__fastcall*)(void*, void*, void*))0x0084AFA0)((containerMenu->inventoryData), nullptr, dataBuffer);
+						//if (*(UInt32*)dataBuffer)
+						//{
+						//	void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+						//	sub_A49D90(dataBuffer, nullptr);
+						//}
+
+						//FormHeap_Free(dataBuffer);
+
+						//for (auto & data : containerMenu->inventoryData->items)
+						//{
+						//	_MESSAGE("NAME: %s   COUNT: %d   VALUE: %d", data->GetName(), data->GetCount(), data->objDesc->GetValue());
+						//}
+						//_MESSAGE("");
+						//containerMenu->inventoryData->Update(g_thePlayer);
+
+
+					}
+					else if (lootMode == 2)//steal
+					{
+						MenuManager* mm = MenuManager::GetSingleton();
+						UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+						mm->CloseMenu(stringHolder->containerMenu);
+					}
+				};
+
+				bool(__cdecl* IsGameRuning)(bool mask) = (bool(__cdecl*)(bool mask))0x006F3570;
+				if (IsGameRuning(true))
 				{
-					containerMenu->inventoryData->Update(g_thePlayer);
+					processTransfer();
 				}
-				else if(lootMode == 2)//steal
+				else
 				{
-					MenuManager* mm = MenuManager::GetSingleton();
-					UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
-					mm->CloseMenu(stringHolder->containerMenu);
+					CallbackDelegate::Register<CallbackDelegate::kType_Normal>(processTransfer);
 				}
 			}
 		}
@@ -1187,39 +1543,55 @@ public:
 				}
 
 				UInt32& lootMode = *(UInt32*)0x01B3E6FC;
-
-				if (pargs->numArgs <= 1 || pargs->args[1].GetType() != GFxValue::ValueType::VT_Number)
+				UInt32 numArgs = pargs->numArgs;
+				UInt32 itemCount = 0;
+				if (numArgs > 1 && pargs->args[1].GetType() == GFxValue::ValueType::VT_Number)
 				{
-					containerMenu->EquipItem(slot, objDesc);
+					itemCount = static_cast<UInt32>(pargs->args[1].GetNumber());
 				}
-				else if (objDesc->baseForm->formType == FormType::Book || containerMenu->TransferItem(objDesc, static_cast<UInt32>(pargs->args[1].GetNumber()), true))
-				{
-					TESForm* form = objDesc->baseForm;
-					if (form->formType == FormType::Ammo)
-					{
-						if (!containerMenu->unk71)
-						{
-							(&containerMenu->unk54)->UpdataAmmoInfo(itemData);
-						}
-						containerMenu->inventoryData->Update(g_thePlayer);
-					}
-					else if (form->formType == FormType::Book)
+				auto processer = [=]() {
+					if (numArgs <= 1 || !itemCount)
 					{
 						containerMenu->EquipItem(slot, objDesc);
 					}
-					else
+					else if (objDesc->baseForm->formType == FormType::Book || containerMenu->TransferItem(objDesc, itemCount, true))
 					{
-						UInt32 itemCount = itemData->GetCount();
-						InventoryEntryData entryData(form, itemCount);
-						containerMenu->EquipItem(slot, &entryData);
-						(&entryData)->Release();
+						TESForm* form = objDesc->baseForm;
+						if (form->formType == FormType::Ammo)
+						{
+							if (!containerMenu->unk71)
+							{
+								(&containerMenu->unk54)->UpdateAmmoInfo(itemData);
+							}
+							containerMenu->inventoryData->Update(g_thePlayer);
+						}
+						else if (form->formType == FormType::Book)
+						{
+							containerMenu->EquipItem(slot, objDesc);
+						}
+						else
+						{
+							UInt32 itemCount = itemData->GetCount();
+							InventoryEntryData entryData(form, itemCount);
+							containerMenu->EquipItem(slot, &entryData);
+							(&entryData)->Release();
+						}
 					}
-				}
-				else if (lootMode == 2 && containerMenu->unk71)
+					else if (lootMode == 2 && containerMenu->unk71)
+					{
+						MenuManager* mm = MenuManager::GetSingleton();
+						UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+						mm->CloseMenu(stringHolder->containerMenu);
+					}
+				};
+				bool(__cdecl* IsGameRuning)(bool mask) = (bool(__cdecl*)(bool mask))0x006F3570;
+				if (!IsGameRuning(true))
 				{
-					MenuManager* mm = MenuManager::GetSingleton();
-					UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
-					mm->CloseMenu(stringHolder->containerMenu);
+					processer();
+				}
+				else
+				{
+					CallbackDelegate::Register<CallbackDelegate::kType_Normal>(processer);
 				}
 			}
 		}
@@ -1230,17 +1602,216 @@ public:
 		if (pargs->pThisMenu != nullptr)
 		{
 			ContainerMenuEx* containerMenu = static_cast<ContainerMenuEx*>(pargs->pThisMenu);
-			containerMenu->TakeAllItem(true);
+			auto processer = [=]() {
+				containerMenu->TakeAllItems(true);
+			};
+			bool(__cdecl* IsGameRuning)(bool mask) = (bool(__cdecl*)(bool mask))0x006F3570;
+			if (!IsGameRuning(true))
+			{
+				processer();
+			}
+			else
+			{
+				CallbackDelegate::Register<CallbackDelegate::kType_Normal>(processer);
+			}
 		}
 	}
+
+
+
+
 
 	struct Data54
 	{
 		TESForm*		form;
 		void*			extraList;
 		UInt32			unk08;
-		DEFINE_MEMBER_FN(UpdataAmmoInfo, void, 0x008685E0, StandardItemData*);
+		DEFINE_MEMBER_FN(UpdateAmmoInfo, void, 0x008685E0, StandardItemData*);
 	};
+
+	void Hook_Update()
+	{
+		if (*(UInt32*)((char*)this + 0x44))
+		{
+			((void(__fastcall*)(void*, void*))0x0084A710)(this, nullptr);
+		}
+		else
+		{
+			((void(__fastcall*)(void*, void*))0x0084B020)(this, nullptr);
+		}
+		((void(__fastcall*)(void*, void*))0x0084B120)(this, nullptr);
+		if (*(UInt32*)((char*)this + 0x3C))
+		{
+			void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+			sub_A49D90(&(this->unk3C), nullptr);
+			*(UInt32*)((char*)this + 0x44) = 0;
+		}
+
+		struct Data04
+		{
+			UInt32  unk00;
+		};
+		Data04 unkData04;
+
+		struct Data10
+		{
+			void*	unk00;
+			UInt32	unk04;
+			UInt32	unk08;
+			void*  unk0C;
+		};
+
+		Data10 arrData;
+
+		switch (this->unk6C)
+		{
+		case 0:
+		{
+			auto fn = [=]()->bool {
+				void* unkData1 = FormHeap_Allocate(0x124);
+				((void(__fastcall*)(void*, void*))0x008687D0)(unkData1, nullptr);
+				((void(__fastcall*)(void*, void*, void*))0x0084AFA0)((this->inventoryData), nullptr, unkData1);
+				if (*(UInt32*)unkData1)
+				{
+					void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+					sub_A49D90(unkData1, nullptr);
+				}
+
+				//CarryWeightData carryWeightData;
+				//(&carryWeightData)->ctor((void*)0x01B3E764);
+				////void* unkData = *(void**)0x01B3E764;
+
+				//struct Data08
+				//{
+				//	RefHandle	handle;
+				//	bool		unk04;
+				//};
+				//Data08 unkData;
+				//unkData.handle = *(RefHandle*)0x01B3E764;
+				//unkData.unk04 = (*(UInt32*)0x01B3E6FC == 3);
+
+				//if (!this->inventoryData->selected)
+				//{
+
+				//	((void(__fastcall*)(void*, void*, CarryWeightData*))0x00848F90)(&(this->inventoryData->items), nullptr, &carryWeightData);
+				//}
+				//if (!this->inventoryData->selected)
+				//{
+				//	((void(__fastcall*)(void*, void*, void*))0x0084A4A0)(&(this->inventoryData->items), nullptr, &unkData);
+				//}
+				////Data0C	arrData2;  //0x12C
+				//void* arrDatas = FormHeap_Allocate(0x124);
+				//((void(__fastcall*)(void*, void*))0x00868DA0)(arrDatas, nullptr);
+				//if (!this->inventoryData->selected)
+				//{
+				//	((void(__fastcall*)(void*, void*, void*))0x008420D0)(&(this->inventoryData->items), nullptr, arrDatas);
+				//}
+				//((void(__fastcall*)(void*, void*))0x008684A0)(arrDatas, nullptr);
+				//if (!this->inventoryData->selected)
+				//{
+
+				//	((void(__fastcall*)(void*, void*, void*, void*))0x00869180)(&(this->unk54), nullptr, this->GetMovieView(), this->inventoryData);
+				//}
+				//((void(__fastcall*)(void*, void*))0x00841D30)(this->inventoryData, nullptr);
+
+				//if (*(UInt32*)arrDatas)
+				//{
+				//	void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+				//	sub_A49D90(arrDatas, nullptr);
+				//	*(UInt32*)((char*)arrDatas + 8) = 0;
+				//	//*(void**)((char*)&arrData2 + 0x8) = nullptr;
+				//}
+
+				FormHeap_Free(unkData1);
+				//FormHeap_Free(arrDatas);
+				return true;
+			};
+			really_async(fn);
+
+			return;
+			break;
+		}
+		//case 1:
+		//case 2:
+		//{
+		//	unkData04.unk00 = (this->unk6C != 2);
+		//	((void(__fastcall*)(void*, void*, void*))0x00843830)((this->inventoryData), nullptr, &unkData04);
+		//	break;
+		//}
+		//case 3:
+		//case 4:
+		//{
+		//	unkData04.unk00 = (this->unk6C != 4);
+		//	((void(__fastcall*)(void*, void*, void*))0x00843930)((this->inventoryData), nullptr, &unkData04);
+		//	break;
+		//}
+		//case 5:
+		//case 6:
+		//{
+		//	unkData04.unk00 = (this->unk6C != 6);
+		//	((void(__fastcall*)(void*, void*, void*))0x008438B0)((this->inventoryData), nullptr, &unkData04);
+		//	break;
+		//}
+		default:
+			break;
+		}
+		CarryWeightData carryWeightData;
+		(&carryWeightData)->ctor((void*)0x01B3E764);
+		//void* unkData = *(void**)0x01B3E764;
+
+		struct Data08
+		{
+			RefHandle	handle;
+			bool		unk04;
+		};
+		Data08 unkData;
+		unkData.handle = *(RefHandle*)0x01B3E764;
+		unkData.unk04 = (*(UInt32*)0x01B3E6FC == 3);
+
+		if (!this->inventoryData->selected)
+		{
+
+			((void(__fastcall*)(void*, void*, CarryWeightData*))0x00848F90)(&(this->inventoryData->items), nullptr, &carryWeightData);
+		}
+		if (!this->inventoryData->selected)
+		{
+			((void(__fastcall*)(void*, void*, void*))0x0084A4A0)(&(this->inventoryData->items), nullptr, &unkData);
+		}
+		//Data0C	arrData2;  //0x12C
+		void* arrDatas = FormHeap_Allocate(0x124);
+		((void(__fastcall*)(void*, void*))0x00868DA0)(arrDatas, nullptr);
+		if (!this->inventoryData->selected)
+		{
+			((void(__fastcall*)(void*, void*, void*))0x008420D0)(&(this->inventoryData->items), nullptr, arrDatas);
+		}
+		((void(__fastcall*)(void*, void*))0x008684A0)(arrDatas, nullptr);
+		if (!this->inventoryData->selected)
+		{
+
+			((void(__fastcall*)(void*, void*, void*, void*))0x00869180)(&(this->unk54), nullptr, this->GetMovieView(), this->inventoryData);
+		}
+		((void(__fastcall*)(void*, void*))0x00841D30)(this->inventoryData, nullptr);
+
+		if (*(UInt32*)arrDatas)
+		{
+			void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
+			sub_A49D90(arrDatas, nullptr);
+			*(UInt32*)((char*)arrDatas + 8) = 0;
+			//*(void**)((char*)&arrData2 + 0x8) = nullptr;
+		}
+		_MESSAGE("W");
+	}
+
+	static void InitHook()
+	{
+		fnProcessMessage = SafeWrite32(0x010E4098 + 0x04 * 4, &ProcessMessage_Hook);
+		SafeWrite32(0x0084C22E, (UInt32)UICallback_TransferItem);
+		SafeWrite32(0x0084C271, (UInt32)UICallback_EquipItem);
+		SafeWrite32(0x0084C2F7, (UInt32)UICallback_TakeAllItems);
+		//WriteRelJump(0x0084B720, GetFnAddr(&Hook_Update));
+		//SafeWrite16(0x0084B77D, 0x9090);
+		//SafeWrite32(0x0084B77F, 0x90909090);
+	}
 
 	UInt32						unk1C;
 	GFxValue					root;
@@ -1261,9 +1832,12 @@ public:
 	DEFINE_MEMBER_FN(ctor, ContainerMenuEx*, 0x008490C0);
 	DEFINE_MEMBER_FN(TransferItem, bool, 0x0084A9B0, InventoryEntryData*, UInt32 itemCount, bool direction);
 	DEFINE_MEMBER_FN(EquipItem, void, 0x00849EC0, BGSEquipSlot* slot, InventoryEntryData* objDesc);
-	DEFINE_MEMBER_FN(TakeAllItem, void, 0x0084C0F0, bool unk);
+	DEFINE_MEMBER_FN(TakeAllItems, void, 0x0084B910, bool unk);
 };
 static_assert(sizeof(ContainerMenuEx) == 0x78, "sizeof(ContainerMenuEx) != 0x78");
+static_assert(offsetof(ContainerMenuEx, unk6C) == 0x6C, "LLL");//inventoryData
+static_assert(offsetof(ContainerMenuEx, inventoryData) == 0x30, "LLL");
+ContainerMenuEx::FnProcessMessage	ContainerMenuEx::fnProcessMessage = nullptr;
 
 
 
@@ -1599,6 +2173,8 @@ void Hook_Game_Commit()
 	MagicMenuEx::InitHook();
 	SleepWaitMenu::InitHook();
 	MessageBoxMenu::InitHook();
+
+	ContainerMenuEx::InitHook();
 	//Fix Inventory.
 	SafeWrite16(0x0086BF6F, 0x9090);
 	SafeWrite32(0x0086BF71, 0x90909090);

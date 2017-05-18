@@ -3,7 +3,8 @@
 
 namespace {
 
-	static const UInt32 * g_TlsIndexPtr = (UInt32 *)0x01BBEB54;
+	static const UInt32 * g_
+		IndexPtr = (UInt32 *)0x01BBEB54;
 
 	struct TLSData
 	{

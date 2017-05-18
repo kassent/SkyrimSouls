@@ -3,7 +3,7 @@
 #include "../BSCore/BSFixedString.h"
 #include "../BSCore/BSString.h"
 #include "../Scaleform/GFxEvent.h"
-
+#include "../Forms/TESForm.h"
 
 /*==============================================================================
 class IUIMessageData +0000 (_vtbl=010CF27C)
@@ -55,6 +55,20 @@ public:
 	RefHandle	refHandle;	// 08
 };
 
+/*==============================================================================
+class InventoryUpdateData +0000 (_vtbl=010E8D14)
+0000: class InventoryUpdateData
+0000: |   class IUIMessageData
+==============================================================================*/
+//10
+class InventoryUpdateData : public IUIMessageData
+{
+public:
+	// @members
+	RefHandle	refHandle;	// 08
+	TESForm*		form;
+	//
+};
 
 /*==============================================================================
 class BSUIScaleformData +0000 (_vtbl=0110DF70)
@@ -117,7 +131,8 @@ public:
 		kMessage_Unk04,
 		kMessage_Unk05,
 		kMessage_Scaleform,					// 6 BSUIScaleformData
-		kMessage_Message					// 7 BSUIMessageData
+		kMessage_Message,					// 7 BSUIMessageData
+		kMessage_UpdateInventory
 	};
 
 	static void * CreateUIMessageData(const BSFixedString &name);

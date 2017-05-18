@@ -233,6 +233,8 @@ public:
 	DEFINE_MEMBER_FN(SetEquipFlag,				void, 0x0071F520, UInt8 flags);			// { if (middleProcess) middleProcess->unk1F5 = flags; }
 	DEFINE_MEMBER_FN(GetAnimationGraphManager,	bool, 0x00721F30, BSAnimationGraphManagerPtr &ptr);
 	DEFINE_MEMBER_FN(GetAnimationResponse,		bool, 0x00721E70, BSAnimationResponsePtr &ptr);
+
+	DEFINE_MEMBER_FN(Update_Unk0,				bool, 0x0071F570);
 	DEFINE_MEMBER_FN(VisitPerkEntries,			void, 0x00724660, UInt8 entryType, PerkEntryVisitor &visitor);
 
 	DEFINE_MEMBER_FN_const(GetLightLevel, float, 0x006FC860);				// { return unk08->lightLevel; } - called in Actor::GetLightLevel()
