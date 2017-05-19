@@ -212,7 +212,7 @@ public:
 		DEFINE_MEMBER_FN_const(GetElement, bool, 0x00923AD0, void *pdata, UInt32 idx, GFxValue *pval);
 		DEFINE_MEMBER_FN(SetElement, bool, 0x00920EA0, void* pdata, UInt32 idx, const GFxValue& value);
 		void    VisitElements(void* pdata, ArrVisitor* visitor, UInt32 idx, SInt32 count) const;		// not found
-		DEFINE_MEMBER_FN(PushBack, bool, 0x00920EF0, void *pada, const GFxValue &value);
+		DEFINE_MEMBER_FN(PushBack, bool, 0x00920EF0, void *pdada, const GFxValue &value);
 		bool    PopBack(void* pdata, GFxValue* pval);													// not found
 		DEFINE_MEMBER_FN(RemoveElements, bool, 0x00920F40, void* pdata, UInt32 idx, SInt32 count);
 		bool    IsDisplayObjectActive(void* pdata) const;												// not found

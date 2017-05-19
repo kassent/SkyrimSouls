@@ -26,7 +26,7 @@ public:
 	// @members
 	//void				** _vtbl;	// 00 - 010E3778
 	InventoryEntryData	* objDesc;	// 04 - init'd pEntry
-	UInt32				unk08;		// 08 - init'd *arg3  always 0x00100000 ?
+	RefHandle			refHandle;		// 08 - init'd *arg3  always 0x00100000 ?
 	UInt32				pad0C;		// 0C
 #pragma pack(4)
 	GFxValue			fxValue;	// 10
