@@ -63,7 +63,7 @@ class ButtonEvent : public IDEvent
 {
 public:
 	UInt32	keyMask;	// 14
-	float	pressure;	// 18
+	UInt32	pressure;	// 18
 	float	timer;		// 1C (hold duration)
 
 	inline bool IsPressed() const {

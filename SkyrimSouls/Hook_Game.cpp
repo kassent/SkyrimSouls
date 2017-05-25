@@ -2,6 +2,7 @@
 #include "Settings.h"
 #include "Tools.h"
 #include "Task.h"
+#include "InputMap.h"
 
 #include <SKSE/GameMenus.h>
 #include <SKSE/SafeWrite.h>
@@ -1233,125 +1234,6 @@ public:
 							}
 							*(bool*)0x01B3E7F0 = false;
 						}
-
-						//if (!this->unk6C)
-						//{
-						//	for (auto data : this->unk3C)
-						//	{
-						//		TESFullName* fullName = DYNAMIC_CAST<TESFullName*>(data);
-						//		if (fullName != nullptr)
-						//		{
-						//			_MESSAGE("OBJECTNAME: %s", fullName->GetFullName());
-						//		}
-						//	}
-						//	//this->unk3C.clear();
-
-						//	for (auto data : this->unk48)
-						//	{
-						//		_MESSAGE("NAME: %s", GetObjectClassName(data));
-						//	}
-
-						//	if (*(UInt32*)((char*)this + 0x44))
-						//	{
-						//		((void(__fastcall*)(void*, void*))0x0084A710)(this, nullptr);  //alwayrs this.
-						//	}
-						//	else
-						//	{
-						//		((void(__fastcall*)(void*, void*))0x0084B020)(this, nullptr);
-						//	}
-						//	((void(__fastcall*)(void*, void*))0x0084B120)(this, nullptr);
-
-						//	if (*(UInt32*)((char*)this + 0x3C))
-						//	{
-						//		void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
-						//		sub_A49D90(&(this->unk3C), nullptr);
-						//		*(UInt32*)((char*)this + 0x44) = 0;
-						//	}
-
-						//	void* unknownData = FormHeap_Allocate(0x124);
-						//	((void(__fastcall*)(void*, void*))0x008687D0)(unknownData, nullptr);
-						//	((void(__fastcall*)(void*, void*, void*))0x0084AFA0)((this->inventoryData), nullptr, unknownData);
-						//	if (*(UInt32*)unknownData)
-						//	{
-						//		void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
-						//		sub_A49D90(unknownData, nullptr);
-						//	}
-
-
-
-						//	CarryWeightData carryWeightData;
-						//	(&carryWeightData)->Create((void*)0x01B3E764);
-
-						//	struct Data08
-						//	{
-						//		RefHandle	handle;
-						//		bool		unk04;
-						//	};
-						//	Data08 unkData;
-						//	unkData.handle = *(RefHandle*)0x01B3E764;
-						//	unkData.unk04 = (*(UInt32*)0x01B3E6FC == 3);
-
-						//	if (!this->inventoryData->selected)
-						//	{
-						//		((void(__fastcall*)(void*, void*, CarryWeightData*))0x00848F90)(&(this->inventoryData->items), nullptr, &carryWeightData);
-						//	}
-
-						//	if (!this->inventoryData->selected)
-						//	{
-						//		((void(__fastcall*)(void*, void*, void*))0x0084A4A0)(&(this->inventoryData->items), nullptr, &unkData);
-						//	}
-
-						//	void* arrDatas = FormHeap_Allocate(0x124);
-						//	((void(__fastcall*)(void*, void*))0x00868DA0)(arrDatas, nullptr);
-
-						//	if (!this->inventoryData->selected)
-						//	{
-						//		((void(__fastcall*)(void*, void*, void*))0x008420D0)(&(this->inventoryData->items), nullptr, arrDatas);
-						//	}
-
-						//	((void(__fastcall*)(void*, void*))0x008684A0)(arrDatas, nullptr);
-
-						//	if (!this->inventoryData->selected)
-						//	{
-						//		((void(__fastcall*)(void*, void*, void*, void*))0x00869180)(&(this->unk54), nullptr, this->GetMovieView(), this->inventoryData);
-						//	}
-
-						//	((void(__fastcall*)(void*, void*))0x00841D30)(this->inventoryData, nullptr);
-
-						//	if (*(UInt32*)arrDatas)
-						//	{
-						//		void(__fastcall* sub_A49D90)(void*, void*) = (void(__fastcall*)(void*, void*))0x00A49D90;
-						//		sub_A49D90(arrDatas, nullptr);
-						//		*(UInt32*)((char*)arrDatas + 8) = 0;
-						//	}
-
-						//	FormHeap_Free(arrDatas);
-						//	FormHeap_Free(unknownData);
-						//}
-						//else
-						//{
-						//	((void(__fastcall*)(void*, void*))0x0084B720)(this, nullptr);
-						//	//this->inventoryData->ui.RemoveElement(0);
-
-						//	((void(__fastcall*)(void*, void*))0x00848EC0)(this, nullptr);
-
-						//	if (handle == *(RefHandle*)0x01B2E8E8)
-						//	{
-
-						//		if (g_thePlayer->processManager->Update_Unk0())
-						//		{
-
-						//			//PlayerEquipemntUpdater::Register();
-						//			if (*(bool*)0x01B3E7F0)
-						//			{
-						//				g_thePlayer->sub_73D9A0();
-						//			}
-						//		}
-						//		*(bool*)0x01B3E7F0 = false;
-						//	}
-						//}
-
-
 					}
 				}
 			}
@@ -1652,6 +1534,113 @@ static_assert(sizeof(ContainerMenuEx) == 0x78, "sizeof(ContainerMenuEx) != 0x78"
 static_assert(offsetof(ContainerMenuEx, unk6C) == 0x6C, "offsetof(ContainerMenuEx, unk6C) != 0x6C");
 static_assert(offsetof(ContainerMenuEx, inventoryData) == 0x30, "offsetof(ContainerMenuEx, inventoryData) != 0x30");
 ContainerMenuEx::FnProcessMessage	ContainerMenuEx::fnProcessMessage = nullptr;
+
+
+
+class GFxMovieEx
+{
+public:
+
+	class RemapHandler : public BSTEventSink<InputEvent*>
+	{
+	public:
+		virtual EventResult ReceiveEvent(InputEvent ** evns, BSTEventSource<InputEvent*> * source) override
+		{
+			ButtonEvent * e = (ButtonEvent*)*evns;
+
+			if (!e || e->eventType != InputEvent::kEventType_Button)
+				return kEvent_Continue;
+
+			UInt32 deviceType = e->deviceType;
+
+			InputManager* inputManager = static_cast<InputManager*>(source);
+			if ((inputManager->IsGamepadEnabled() ^ (deviceType == BSInputDevice::kType_Gamepad)) || !e->IsDown())
+				return kEvent_Continue;
+
+			UInt32 keyMask = e->keyMask;
+			UInt32 keyCode;
+
+			// Mouse
+			if (deviceType == BSInputDevice::kType_Mouse)
+				keyCode = InputMap::kMacro_MouseButtonOffset + keyMask;
+			// Gamepad
+			else if (deviceType == BSInputDevice::kType_Gamepad)
+				keyCode = InputMap::GamepadMaskToKeycode(keyMask);
+			// Keyboard
+			else
+				keyCode = keyMask;
+
+			if (keyCode >= InputMap::kMaxMacros)
+				keyCode = -1;
+
+			auto fn = [=]() {
+				GFxValue arg;
+				arg.SetNumber(keyCode);
+				scope.Invoke("EndRemapMode", NULL, &arg, 1);
+			};
+			CallbackDelegate::Register<CallbackDelegate::kType_UI>(fn);
+
+			MenuControls::GetSingleton()->remapMode = false;
+			PlayerControls::GetSingleton()->unk14.remapMod = false;
+
+			source->RemoveEventSink(this);
+			return kEvent_Continue;
+		}
+
+		GFxValue scope;
+	};
+
+	static void __fastcall StartRemapMode_Hook(void* handler, void* padding, GFxFunctionHandler::Params& params)
+	{
+		if (!params.ArgCount)
+			return;
+		GFxMovieEx::pRemapHandler->scope = params.pArgs[0];
+
+		PlayerControls* playerControls = PlayerControls::GetSingleton();
+		if (!playerControls)
+			return;
+
+		MenuControls* menuControls = MenuControls::GetSingleton();
+		if (!menuControls)
+			return;
+
+		InputManager* inputManager = InputManager::GetSingleton();
+		if (inputManager != nullptr)
+		{
+			inputManager->AddEventSink(GFxMovieEx::pRemapHandler);
+			menuControls->remapMode = true;
+			playerControls->unk14.remapMod = true;
+		}
+	}
+
+	typedef void(__thiscall GFxMovieEx::*FnCreateFunction)(GFxValue* pValue, GFxFunctionHandler* pfc, void* puserData);
+
+	static FnCreateFunction fnCreateFunction;
+
+	static RemapHandler*	pRemapHandler;
+
+	void CreateFunction_Hook(GFxValue* pValue, GFxFunctionHandler* pfc, void* puserData)
+	{
+		char* className = "class SKSEScaleform_StartRemapMode";
+		static bool bSkipCheck = false;
+		if (!bSkipCheck && strcmp(typeid(*pfc).name(), className) == 0)
+		{
+			SafeWrite32((UInt32)(*(UInt32**)pfc + 0x1), (UInt32)StartRemapMode_Hook);
+			bSkipCheck = true;
+		}
+		(this->*fnCreateFunction)(pValue, pfc, puserData);
+	}
+
+	static void InitHook()
+	{
+		pRemapHandler = new RemapHandler();
+
+		fnCreateFunction = SafeWrite32(0x011032C8 + 4 * 0xF, &CreateFunction_Hook);
+	}
+};
+GFxMovieEx::FnCreateFunction GFxMovieEx::fnCreateFunction = nullptr;
+GFxMovieEx::RemapHandler*	 GFxMovieEx::pRemapHandler = nullptr;
+
 
 
 
@@ -1989,6 +1978,8 @@ void Hook_Game_Commit()
 	MessageBoxMenu::InitHook();
 
 	ContainerMenuEx::InitHook();
+
+	GFxMovieEx::InitHook();
 	//Fix Inventory.
 	SafeWrite16(0x0086BF6F, 0x9090);
 	SafeWrite32(0x0086BF71, 0x90909090);

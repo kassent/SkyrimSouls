@@ -153,6 +153,7 @@
   <ItemGroup>
     <ClCompile Include="Console.cpp" />
     <ClCompile Include="Hook_Game.cpp" />
+    <ClCompile Include="InputMap.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Task.cpp" />
@@ -162,6 +163,7 @@
     <ClInclude Include="Console.h" />
     <ClInclude Include="Hook_Game.h" />
     <ClInclude Include="ICriticalSection.h" />
+    <ClInclude Include="InputMap.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="Task.h" />
