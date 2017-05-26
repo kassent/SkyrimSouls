@@ -1552,7 +1552,6 @@ public:
 				return kEvent_Continue;
 
 			UInt32 deviceType = e->deviceType;
-
 			InputManager* inputManager = static_cast<InputManager*>(source);
 			if ((inputManager->IsGamepadEnabled() ^ (deviceType == BSInputDevice::kType_Gamepad)) || !e->IsDown())
 				return kEvent_Continue;
@@ -1560,30 +1559,34 @@ public:
 			UInt32 keyMask = e->keyMask;
 			UInt32 keyCode;
 
-			// Mouse
 			if (deviceType == BSInputDevice::kType_Mouse)
 				keyCode = InputMap::kMacro_MouseButtonOffset + keyMask;
-			// Gamepad
 			else if (deviceType == BSInputDevice::kType_Gamepad)
 				keyCode = InputMap::GamepadMaskToKeycode(keyMask);
-			// Keyboard
 			else
 				keyCode = keyMask;
 
 			if (keyCode >= InputMap::kMaxMacros)
 				keyCode = -1;
 
+			source->RemoveEventSink(this);
+
 			auto fn = [=]() {
 				GFxValue arg;
 				arg.SetNumber(keyCode);
-				scope.Invoke("EndRemapMode", NULL, &arg, 1);
+				GFxValue result;
+				scope.Invoke("EndRemapMode", &result, &arg, 1);
+				if (scope.IsManagedValue())
+				{
+					scope.ReleaseManagedValue();
+				}
+				if (pRemapHandler != nullptr)
+				{
+					GMemory::Free(pRemapHandler);
+					pRemapHandler = nullptr;
+				}
 			};
 			CallbackDelegate::Register<CallbackDelegate::kType_UI>(fn);
-
-			MenuControls::GetSingleton()->remapMode = false;
-			PlayerControls::GetSingleton()->unk14.remapMod = false;
-
-			source->RemoveEventSink(this);
 			return kEvent_Continue;
 		}
 
@@ -1594,22 +1597,19 @@ public:
 	{
 		if (!params.ArgCount)
 			return;
-		GFxMovieEx::pRemapHandler->scope = params.pArgs[0];
-
-		PlayerControls* playerControls = PlayerControls::GetSingleton();
-		if (!playerControls)
-			return;
-
-		MenuControls* menuControls = MenuControls::GetSingleton();
-		if (!menuControls)
-			return;
 
 		InputManager* inputManager = InputManager::GetSingleton();
 		if (inputManager != nullptr)
 		{
+			if (pRemapHandler != nullptr)
+			{
+				GMemory::Free(pRemapHandler);
+				pRemapHandler = nullptr;
+			}
+			pRemapHandler = new (GMemory::Alloc(sizeof(RemapHandler))) RemapHandler;
+			pRemapHandler->scope = params.pArgs[0];
+
 			inputManager->AddEventSink(GFxMovieEx::pRemapHandler);
-			menuControls->remapMode = true;
-			playerControls->unk14.remapMod = true;
 		}
 	}
 
@@ -1633,8 +1633,6 @@ public:
 
 	static void InitHook()
 	{
-		pRemapHandler = new RemapHandler();
-
 		fnCreateFunction = SafeWrite32(0x011032C8 + 4 * 0xF, &CreateFunction_Hook);
 	}
 };
