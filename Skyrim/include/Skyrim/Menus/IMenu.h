@@ -61,19 +61,51 @@ public:
 	}
 
 	bool LoadMovie(const char *swfPath, GFxMovieView::ScaleModeType mode, float backgroundAlpha = 0.0f);
-
+	//StatsMenu:				0x0088D340
+	//FavoritesMenu:			0x0085BF50
+	//Journal Menu:				0x008AC1B0
+	//ContainerMenu:			0x008497D0
+	//Credits Menu:				0x008598A0
+	//Main Menu:				0x00876FC0
+	//InventoryMenu:			0x0086A3F0
+	//LevelUp Menu:				0x0086E8B0
+	//TitleSequence Menu:		0x008934B0
+	//Tutorial Menu:			0x008945F0
+	//Console Native UI Menu:	0x008488C0
+	//Lockpicking Menu:			0x00871FD0
+	//RaceSex Menu:				0x00885C90
+	//SafeZoneMenu:				0x00887980
+	//Fader Menu:				0x0085B020
+	//Sleep/Wait Menu:			0x00887E60
+	//Mist Menu:				0x0087C920
+	//Kinect Menu:				0x0086E5E0
+	//MessageBoxMenu:			0x0087A7D0
+	//Book Menu:				0x00845C60
+	//Loading Menu:				0x0086F290
+	//Training Menu:			0x00893FC0
+	//Crafting Menu:			0x0084ECD0
+	//Cursor Menu:				0x00859B70
+	//TweenMenu:				0x00895870
+	//MapMenu:					0x008A1D90
+	//BarterMenu:				0x00842B30
+	//Console:					0x00847280
+	//GiftMenu:					0x0085D1E0
+	//MagicMenu:				0x00873D10
+	//Dialogue Menu:			0x0085A2E0
+	//HUD Menu:					0x00865F50
 
 	// @members
 	//void			** _vtbl;		// 00 - 0110E7E8
 	GFxMovieView	* view;			// 08 - init'd to nullptr, view->Release() called in dtor
 	UInt8			menuDepth;		// 0C - init'd to 3 - movie clip depth ?
-									//    - 0x0 0000 ContainerMenu, BarterMenu
+									//    - 0x0 0000 ContainerMenu, BarterMenu, InventoryMenu, MagicMenu, TweenMenu,
+									//    - 0x1 0001 Book Menu
 									//    - 0x2 0010 HUD Menu
-									//    - 0x3 0011 Fader Menu, StatsMenu, MapMenu, FavoritesMenu, Training Menu
+									//    - 0x3 0011 Fader Menu, StatsMenu, MapMenu, FavoritesMenu, Training Menu, TitleSequence Menu, Lockpicking Menu, Dialogue Menu, GiftMenu, 
 									//    - 0x5 0101 Journal Menu
 									//    - 0x8 1000 Mist Menu
 									//    - 0x9 1001 Loading Menu, Main Menu
-									//    - 0xA 1010 Credits Menu
+									//    - 0xA 1010 Credits Menu, Tutorial Menu
 									//    - 0xC 1100 Console
 									//    - 0xD 1101 Cursor Menu
 	UInt32			flags;			// 10 - init'd to 0	- 0x01 PauseGame, 0x40 Open

@@ -25,6 +25,7 @@
 #include <Skyrim/FileIO/BGSSaveLoadManager.h>
 #include <Skyrim/BSMain/Setting.h>
 #include <Skyrim/FileIO/TESDataHandler.h>
+#include <Skyrim/FormComponents/TESFullName.h>
 //#include <Skyrim/BSCore/BSTArray.h>
 
 #include <regex>
@@ -43,6 +44,7 @@ public:
 	//12C2414		float,time multipler?
 	virtual EventResult ReceiveEvent(MenuOpenCloseEvent *evn, BSTEventSource<MenuOpenCloseEvent> *src) override
 	{
+		//_MESSAGE("menuName： %s", evn->menuName.c_str());
 		auto it = settings.m_menuConfig.find(std::string(evn->menuName.c_str()));
 		if (it != settings.m_menuConfig.end())
 		{
@@ -415,18 +417,10 @@ public:
 					{
 						GFxValue result;
 						bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0); //只能翻一页。
-						//bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.UpdatePages", &result, nullptr, 0);
 						bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.CalculatePagination", &result, nullptr, 0); //只能翻一页。
-						//bookMenu->bookView->Invoke("BookMenu.BookMenuInstance.UpdatePages", &result, nullptr, 0);
 					}
 					bookMenu->bookView->SetPause(true);
-
 					bookMenu->TurnPage(m_direction);
-					if (bookMenu->flags & IMenu::kType_PauseGame)
-					{
-						mm->numPauseGame -= 1;
-						bookMenu->flags &= ~IMenu::kType_PauseGame;
-					}
 				}
 			}
 		}
@@ -452,10 +446,8 @@ public:
 					{
 						bookMenu->TurnPage(direction);
 					}
-					else if(!mm->numPauseGame && !(bookMenu->flags & IMenu::kType_PauseGame))
+					else if(!(bookMenu->flags & IMenu::kType_PauseGame))
 					{
-						mm->numPauseGame += 1;
-						bookMenu->flags |= IMenu::kType_PauseGame;
 						const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
 						const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
 						if (task)
@@ -530,16 +522,10 @@ public:
 	UInt32 ProcessMessage_Hook(UIMessage* msg)
 	{
 		UIStringHolder* holder = UIStringHolder::GetSingleton();
-
 		if (settings.m_menuConfig[holder->bookMenu.c_str()])
 		{
 			InputStringHolder* input = InputStringHolder::GetSingleton();
 			MenuManager* mm = MenuManager::GetSingleton();
-
-			if (msg->type == UIMessage::kMessage_Open)
-			{
-				this->menuDepth = 4;
-			}
 
 			if (msg->type == UIMessage::kMessage_Message)
 			{
@@ -564,8 +550,6 @@ public:
 					{
 						g_thePlayer->PickUpItem(data->reference, 1, false, true);
 					}
-					//this->SendAnimationEvent("SoundPlay");
-					//this->SendAnimationEvent("CloseOut");
 					auto fn = [=]() {
 						GFxValue result;
 						this->bookView->Invoke("BookMenu.BookMenuInstance.PrepForClose", &result, nullptr, 0);
@@ -602,10 +586,6 @@ public:
 		}
 		else
 		{
-			if (msg->type == UIMessage::kMessage_Open)
-			{
-				this->menuDepth = 4;
-			}
 			return (this->*fnProcessMessage)(msg);
 		}
 	}
@@ -634,7 +614,6 @@ public:
 						}
 						if (mm->numPauseGame && (bookMenu->flags & IMenu::kType_PauseGame))
 						{
-							//bookMenu->bookView->SetPause(true);
 							mm->numPauseGame -= 1;
 							bookMenu->flags &= ~IMenu::kType_PauseGame;
 							if (!mm->numPauseGame)
@@ -666,17 +645,12 @@ public:
 
 		//fnReceiveEvent = SafeWrite32(0x010E3A98 + 0x01 * 4, &ReceiveEvent_Hook);
 
-		WriteRelCall(0x008464AC, GetFnAddr(&BookMenu::SetBookText_Hook));
+		WriteRelCall(0x008464AC, GetFnAddr(&SetBookText_Hook));
 
 		SafeWrite8(0x0084672B, 0x90);
-
 		SafeWrite32(0x0084672C, 0x90909090);
-
-		//WriteRelCall(0x008466D0, GetFnAddr(&BookMenu::CreateBookLayout_Hook));
-
-		//SafeWrite8(0x008466AB, 0x00);
-
-		//SafeWrite8(0x008455E8, 0x00);
+		//Bookmenu depth
+		SafeWrite8(0x00845618, 0x3);
 	}
 
 	//members:
@@ -701,7 +675,8 @@ public:
 	DEFINE_MEMBER_FN(InitBookMenu, void, 0x008451C0);
 	DEFINE_MEMBER_FN(CreateBookLayout, void, 0x00845F70);
 	DEFINE_MEMBER_FN(SetBookText, void, 0x00845D60);
-
+	DEFINE_MEMBER_FN(ctor, BookMenu*, 0x00845550);
+	//Wrapper<Book Menu>::Register()		ctor: 00845C60  845550
 };
 static_assert(sizeof(BookMenu) == 0x60, "sizeof(BookMenu) != 0x60");
 BookMenu::FnProcessMessage	BookMenu::fnProcessMessage = nullptr;
@@ -722,14 +697,14 @@ public:
 		return (this->*fnProcessMessage)(msg);
 	}
 
-	static void STDFN Hook_SetLockInfo()
+	static void __stdcall Hook_SetLockInfo()
 	{
 		UIStringHolder* holder = UIStringHolder::GetSingleton();
 		MenuManager* manager = MenuManager::GetSingleton();
 		if (holder && manager && manager->IsMenuOpen(holder->lockpickingMenu))
 		{
 			IMenu* lockpickingMenu = manager->GetMenu(holder->lockpickingMenu);
-			if (settings.m_menuConfig[holder->lockpickingMenu.c_str()] && (lockpickingMenu->flags & IMenu::kType_PauseGame) == IMenu::kType_PauseGame)
+			if (settings.m_menuConfig[holder->lockpickingMenu.c_str()] && (lockpickingMenu->flags & IMenu::kType_PauseGame))
 			{
 				manager->numPauseGame -= 1;
 				lockpickingMenu->flags &= ~IMenu::kType_PauseGame;
@@ -779,7 +754,7 @@ public:
 	{
 		if (msg->type == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0)
 		{
-			this->menuDepth = 2;
+			this->menuDepth = 0;
 			//GFxMovieView* view = this->GetMovieView();
 		}
 		return (this->*fnProcessMessage)(msg);
@@ -787,7 +762,9 @@ public:
 
 	static void InitHook()
 	{
-		fnProcessMessage = SafeWrite32(0x010E4C9C + 0x04 * 4, &ProcessMessage_Hook);
+		//fnProcessMessage = SafeWrite32(0x010E4C9C + 0x04 * 4, &ProcessMessage_Hook);
+		//Dialogue menu depth
+		SafeWrite8(0x0085A231, 0x0);
 	}
 };
 DialogueMenuEx::FnProcessMessage	DialogueMenuEx::fnProcessMessage = nullptr;
@@ -1070,7 +1047,6 @@ static_assert(sizeof(SleepWaitMenu) == 0x38, "sizeof(SleepWaitMenu) != 0x38");
 SleepWaitMenu::FnProcessMessage	SleepWaitMenu::fnProcessMessage = nullptr;
 
 
-
 class MessageBoxMenu : public IMenu
 {
 public:
@@ -1085,6 +1061,7 @@ public:
 			IMenu* msgMenu = static_cast<IMenu*>(pargs->pThisMenu);
 			if (!(msgMenu->flags & IMenu::kType_PauseGame))
 			{
+				MenuManager* mm = MenuManager::GetSingleton();
 				double iIndex = pargs->args->GetNumber();
 
 				auto fn = [=]() {
@@ -1103,10 +1080,11 @@ public:
 #ifdef DEBUG_LOG
 					_MESSAGE("iIndex: %.2f    IMenu: %p", iIndex, msgMenu);
 #endif
+					msgMenu->flags &= ~IMenu::kType_PauseGame;
+					mm->numPauseGame -= 1;
 					((void(__cdecl*)(FxDelegateArgs*))0x0087B1D0)(&args);
 				};
 
-				MenuManager* mm = MenuManager::GetSingleton();
 				msgMenu->flags |= IMenu::kType_PauseGame;
 				mm->numPauseGame += 1;
 				CallbackDelegate::Register<CallbackDelegate::kType_Pause>(fn);
@@ -1125,7 +1103,7 @@ public:
 
 };
 
-#include <Skyrim/FormComponents/TESFullName.h>
+
 
 class ContainerMenuEx : public IMenu
 {
@@ -1172,81 +1150,6 @@ public:
 
 	UInt32 ProcessMessage_Hook(UIMessage* msg)
 	{
-#ifdef DEBUG_LOG
-		if (msg->type == UIMessage::kMessage_UpdateInventory)
-		{
-			auto invUpdateData = static_cast<InventoryUpdateData*>(msg->data);
-			if (invUpdateData != nullptr)
-			{
-				RefHandle handle = invUpdateData->refHandle;
-				TESForm* form = invUpdateData->form;
-				if (handle == *(RefHandle*)0x01B2E8E8 || handle == *(RefHandle*)0x01B3E764)
-				{
-					if (form != nullptr)
-					{
-						if (!((bool(__cdecl*)(BSTArray<TESForm*>*, TESForm**))0x008431B0)(&(this->unk3C), &form))
-						{
-							form = invUpdateData->form;
-							((void(__cdecl*)(BSTArray<TESForm*>*, TESForm**))0x0055B020)(&(this->unk3C), &form);
-						}
-						if (handle == *(RefHandle*)0x01B2E8E8)
-						{
-							form = invUpdateData->form;
-							if (form->formType == FormType::Armor)
-							{
-								void* unkData1 = g_thePlayer->sub_4D6630();
-								void* unkData2 = ((void* (__cdecl*)(TESForm*))0x447CA0)(form);
-								bool(__fastcall* sub_447C20)(void*, void*, void*) = (bool(__fastcall*)(void*, void*, void*))0x00447C20;
-								if (sub_447C20(unkData2, nullptr, unkData1) && (((g_thePlayer->flags08 >> 5) & 7) >= 3))
-								{
-									*(bool*)0x01B3E7F0 = true;
-								}
-							}
-						}
-					}
-					else
-					{
-						if (!this->unk6C)
-						{
-							for (auto data : this->unk3C)
-							{
-								TESFullName* fullName = DYNAMIC_CAST<TESFullName*>(data);
-								if (fullName != nullptr)
-								{
-									_MESSAGE("OBJECTNAME: %s", fullName->GetFullName());
-								}
-							}
-						}
-						_MESSAGE("");
-
-						((void(__fastcall*)(void*, void*))0x0084B720)(this, nullptr);
-						((void(__fastcall*)(void*, void*))0x00848EC0)(this, nullptr);
-
-						if (handle == *(RefHandle*)0x01B2E8E8)
-						{
-
-							if (g_thePlayer->processManager->Update_Unk0())
-							{
-								if (*(bool*)0x01B3E7F0)
-								{
-									g_thePlayer->sub_73D9A0();
-								}
-							}
-							*(bool*)0x01B3E7F0 = false;
-						}
-					}
-				}
-			}
-			_MESSAGE("VTBL: %08X", *(UInt32*)invUpdateData);//010E8D14
-			_MESSAGE("HANDLE: %08X    FORM: %p", invUpdateData->refHandle, invUpdateData->form);
-			return 0;
-		}
-		else if (msg->type == UIMessage::kMessage_Message)
-		{
-			BSUIMessageData* msgData = static_cast<BSUIMessageData*>(msg->data);
-			_MESSAGE("MSGDATA: %s", msgData->unk0C.c_str());
-		}
-#endif
 		return (this->*fnProcessMessage)(msg);
 	}
 

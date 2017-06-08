@@ -58,7 +58,7 @@ public:
 			menu = (ctor)();
 			if (menu != nullptr)
 			{
-				GetSingleton()->m_instance = menu;//g_thePlayer->IsInCombat()
+				GetSingleton()->m_instance = menu;
 				//auto setting = settings.m_menuConfig[N.c_str()];
 				if (settings.m_menuConfig[N.c_str()])
 				{
@@ -66,10 +66,11 @@ public:
 					menu->flags &= ~IMenu::kType_StopDrawingWorld;
 					menu->flags |= IMenu::kType_StopCrosshairUpdate;
 
-					if (menu->menuDepth < 0x3)
+					if (menu->menuDepth < 0x1)
 					{
-						menu->menuDepth = 0x3;
+						menu->menuDepth = 0x1;
 					}
+
 					GFxMovieView* view = menu->GetMovieView();
 					if (view != nullptr)
 					{
