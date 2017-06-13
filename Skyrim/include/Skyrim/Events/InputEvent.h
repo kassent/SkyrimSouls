@@ -74,6 +74,10 @@ public:
 		return (pressure > 0) && (timer == 0.0f);
 	}
 
+	inline bool IsHolding() const {
+		return (pressure > 0) && (timer >= 0.0f);
+	}
+
 	inline bool IsUp() const {
 		return (pressure == 0) && (timer > 0.0f);
 	}

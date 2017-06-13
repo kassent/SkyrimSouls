@@ -9,7 +9,7 @@
 #include "Character/Components/ActorState.h"
 #include "Character/Components/ActorMagicCaster.h"
 #include "Character/Components/MovementControllerAI.h"
-
+#include "Character/Components/ActorProcessManager.h"
 // Declare Classes
 NiSmartPointer(Actor);
 
@@ -377,6 +377,8 @@ public:
 	///<summary>Checks to see if this actor has the given Perk.</summary>
 	DEFINE_MEMBER_FN_const(HasPerk, bool, 0x006AA190, BGSPerk * perk);
 
+	DEFINE_MEMBER_FN(SetGhost, void, 0x006A8D00, bool arg);
+
 	Actor* GetDialogueTarget()
 	{
 		RefHandle handle = this->dialogueTargetRefHandle;
@@ -421,6 +423,14 @@ public:
 		fn(this, nullptr);
 	}
 
+	bool PlayIdle(TESIdleForm* idle)
+	{
+		if (idle != nullptr && processManager != nullptr)
+		{
+			return processManager->PlayIdle(this, 0x40, idle, true, 0.0f, false);
+		}
+		return false;
+	}
 
 	//int __cdecl sub_8DA850(int, int, int, int, int, int, int, float, float, float, int, int)
 
@@ -463,6 +473,7 @@ public:
 		return flags2.killMove;
 	}
 
+	DEFINE_MEMBER_FN(CanTriggerKillCam, bool, 0x006E1770, Actor* actor);
 	///<summary>Gets this actor's current level.</summary>
 	DEFINE_MEMBER_FN_const(GetLevel, UInt16, 0x006A7320);
 
@@ -476,6 +487,8 @@ public:
 	DEFINE_MEMBER_FN_const(GetGoldAmount, UInt32, 0x006A8190);
 
 	DEFINE_MEMBER_FN(GetDetectionLevel, SInt32, 0x006AE830, Actor *target, UInt32 flag);	// return -1000 if not detected
+
+
 	
 	///<summary>Checks to see if this actor is currently being affected by a Magic Effect with the given Keyword.</summary>
 	bool HasMagicEffectWithKeyword(const BGSKeyword *keyword) const		// 008DA550
@@ -527,7 +540,7 @@ public:
 	{
 		bool			unk00 : 1;			// 00 0x00000001
 		bool			AIEnabled : 1;		// 01 0x00000002
-		unsigned char	unk02 : 6;			// 02 0x000000FC
+		unsigned char	unk02 : 6;			// 02 0x000000FCg
 		unsigned char	unk08 : 8;			// 08 0x0000FF00
 		unsigned char	unk10 : 8;			// 10 0x00FF0000
 		unsigned char	unk18 : 2;			// 18 0x03000000

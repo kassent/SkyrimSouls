@@ -241,6 +241,9 @@ public:
 	DEFINE_MEMBER_FN(SetLightLevel, void, 0x006FC890, float lightLevel);	// { unk08->lightLevel = lightLevel; } - called from 00720E57
 	DEFINE_MEMBER_FN(SetUnk08_Unk20C, void, 0x0071F8D0);					// { unk08->unk20C = true; } - called in Actor::GetLightLevel()
 
+	DEFINE_MEMBER_FN(PlayIdle, bool, 0x0070C4B0, Actor* target, UInt8 arg1, TESIdleForm* idle, bool arg3, float arg4, bool arg5);
+		//char __thiscall sub_70C4B0(int this, int a2, char a3, int a4, int a5, float a6, int a7)
+
 	// @members
 	UInt32			unk00;								// 00
 	MiddleProcess	* middleProcess;					// 04

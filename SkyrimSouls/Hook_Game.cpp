@@ -1226,19 +1226,32 @@ public:
 				UInt32 itemCount = static_cast<UInt32>(pargs->args[0].GetNumber());
 				bool direction = pargs->args[1].GetBool();
 
-				CarryWeightData carryWeightData;
-				(&carryWeightData)->Create((void*)0x01B3E764);
+				CarryWeightData* pCarryWeightData = new (FormHeap_Allocate(sizeof(CarryWeightData))) CarryWeightData();
+				pCarryWeightData->Create((void*)0x01B3E764);
 
 				UInt32 actualCount = 0;
-				(&carryWeightData)->CalculateItemCount(objDesc->baseForm, itemCount, direction, actualCount);
+				pCarryWeightData->CalculateItemCount(objDesc->baseForm, itemCount, direction, actualCount);
+				FormHeap_Free(pCarryWeightData);
 
 				auto processTransfer = [=]() {
 					UInt32& lootMode = *(UInt32*)0x01B3E6FC;
-
 					containerMenu->unk3C.clear();
 
 					if (containerMenu->TransferItem(objDesc, actualCount, direction))
 					{
+						g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+						TESObjectREFR* ref = nullptr;
+						void(__cdecl* GetContainerOwner)(void*, TESObjectREFR*&) = (void(__cdecl*)(void*, TESObjectREFR*&))0x004A9180;
+						GetContainerOwner((void*)0x01B3E764, ref);
+						if (ref != nullptr && ref->Is(FormType::Character))
+						{
+							Actor* actor = DYNAMIC_CAST<Actor*>(ref);
+							if (actor != nullptr && actor->processManager != nullptr)
+							{
+								((void(__cdecl*)(Actor*))0x00664B90)(actor);
+								actor->processManager->UpdateEquipment(actor);
+							}
+						}
 						containerMenu->inventoryData->Update(g_thePlayer);
 					}
 					else if (lootMode == 2)//steal
@@ -1247,19 +1260,6 @@ public:
 						UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
 						mm->CloseMenu(stringHolder->containerMenu);
 					}
-					auto fn = []()
-					{
-						g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
-						TESObjectREFR* ref = nullptr;
-						void(__cdecl* GetContainerOwner)(void*, TESObjectREFR*&) = (void(__cdecl*)(void*, TESObjectREFR*&))0x004A9180;
-						GetContainerOwner((void*)0x01B3E764, ref);
-						if (ref != nullptr && ref->Is(FormType::Character))
-						{
-							Actor* actor = static_cast<Actor*>(ref);
-							actor->processManager->UpdateEquipment(actor);
-						}
-					};
-					CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
 				};
 				if (containerMenu->flags & IMenu::kType_PauseGame)
 				{
@@ -1301,12 +1301,13 @@ public:
 				{
 					itemCount = static_cast<UInt32>(pargs->args[1].GetNumber());
 				}
-				auto processer = [=]() {
+				auto processer = [=]() 
+				{
 					containerMenu->unk3C.clear();
-
 					if (numArgs <= 1 || !itemCount)
 					{
 						containerMenu->EquipItem(slot, objDesc);
+						goto UpdateItemInfo;
 					}
 					else if (objDesc->baseForm->formType == FormType::Book || containerMenu->TransferItem(objDesc, itemCount, true))
 					{
@@ -1315,20 +1316,24 @@ public:
 						{
 							if (!containerMenu->unk71)
 							{
-								(&containerMenu->unk54)->UpdateAmmoInfo(itemData);
+								Data54* pData = &containerMenu->unk54;
+								pData->UpdateAmmoInfo(itemData);
 							}
-							containerMenu->inventoryData->Update(g_thePlayer);
+							goto UpdateItemInfo;
 						}
 						else if (form->formType == FormType::Book)
 						{
 							containerMenu->EquipItem(slot, objDesc);
+							goto UpdateItemInfo;
 						}
 						else
 						{
 							UInt32 itemCount = itemData->GetCount();
-							InventoryEntryData entryData(form, itemCount);
-							containerMenu->EquipItem(slot, &entryData);
-							(&entryData)->Release();
+							InventoryEntryData* pEntryData = new (FormHeap_Allocate(sizeof(InventoryEntryData))) InventoryEntryData(form, itemCount);
+							containerMenu->EquipItem(slot, pEntryData);
+							pEntryData->Release();
+							FormHeap_Free(pEntryData);
+							goto UpdateItemInfo;
 						}
 					}
 					else if (lootMode == 2 && containerMenu->unk71)
@@ -1337,19 +1342,23 @@ public:
 						UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
 						mm->CloseMenu(stringHolder->containerMenu);
 					}
-					auto fn = []()
+					return;
+
+				UpdateItemInfo:
+					g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+					TESObjectREFR* ref = nullptr;
+					void(__cdecl* GetContainerOwner)(void*, TESObjectREFR*&) = (void(__cdecl*)(void*, TESObjectREFR*&))0x004A9180;
+					GetContainerOwner((void*)0x01B3E764, ref);
+					if (ref != nullptr && ref->Is(FormType::Character))
 					{
-						g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
-						TESObjectREFR* ref = nullptr;
-						void(__cdecl* GetContainerOwner)(void*, TESObjectREFR*&) = (void(__cdecl*)(void*, TESObjectREFR*&))0x004A9180;
-						GetContainerOwner((void*)0x01B3E764, ref);
-						if (ref != nullptr && ref->Is(FormType::Character))
+						Actor* actor = DYNAMIC_CAST<Actor*>(ref);
+						if (actor != nullptr && actor->processManager != nullptr)
 						{
-							Actor* actor = static_cast<Actor*>(ref);
+							((void(__cdecl*)(Actor*))0x00664B90)(actor);
 							actor->processManager->UpdateEquipment(actor);
 						}
-					};
-					CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
+					}
+					containerMenu->inventoryData->Update(g_thePlayer);
 				};
 				if (containerMenu->flags & IMenu::kType_PauseGame)
 				{
@@ -1371,19 +1380,17 @@ public:
 			auto processer = [=]() {
 				containerMenu->unk3C.clear();
 				containerMenu->TakeAllItems(true);
-				auto fn = []()
+				TESObjectREFR* ref = nullptr;
+				void(__cdecl* GetContainerOwner)(void*, TESObjectREFR*&) = (void(__cdecl*)(void*, TESObjectREFR*&))0x004A9180;
+				GetContainerOwner((void*)0x01B3E764, ref);
+				if (ref != nullptr && ref->Is(FormType::Character))
 				{
-					g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
-					TESObjectREFR* ref = nullptr;
-					void(__cdecl* GetContainerOwner)(void*, TESObjectREFR*&) = (void(__cdecl*)(void*, TESObjectREFR*&))0x004A9180;
-					GetContainerOwner((void*)0x01B3E764, ref);
-					if (ref != nullptr && ref->Is(FormType::Character))
+					Actor* actor = DYNAMIC_CAST<Actor*>(ref);
+					if (actor != nullptr && actor->processManager != nullptr)
 					{
-						Actor* actor = static_cast<Actor*>(ref);
 						actor->processManager->UpdateEquipment(actor);
 					}
-				};
-				CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
+				}
 			};
 			if (containerMenu->flags & IMenu::kType_PauseGame)
 			{
@@ -1410,6 +1417,10 @@ public:
 		//Rebuild item data
 		//0084B72F                 call    sub_84A710
 		WriteRelCall(0x0084B72F, GetFnAddr(&UpdateItemDataInfo_Hook));
+
+		//EquipItem doesn't send update info.
+		SafeWrite16(0x0084A0A5, 0x9090);
+		SafeWrite32(0x0084A0A7, 0x90909090);
 	}
 
 	UInt32						unk1C;
@@ -1823,7 +1834,7 @@ void UICallBack_ExecuteCommand(FxDelegateArgs* pargs)
 					{
 						SInt16 x = 0;
 						UInt16 y = 0;
-						TESDataHandler* pDataHandler = TESDataHandler::GetSingleton();//next codes are too slow...
+						TESDataHandler* pDataHandler = TESDataHandler::GetSingleton();//The next codes are too slow...
 						void* worldSpace = pDataHandler->GetSpaceData(destination.c_str(), x, y);
 						if (worldSpace != nullptr)
 						{

@@ -18,7 +18,7 @@ public:
 	virtual float	GetBase(UInt32 arg);								// 0055FF50 { return 0.0f; }
 	virtual void	SetBase(UInt32 arg0, float arg1);					// 004D43E0 { return; }
 	virtual void	ModBase(UInt32 arg0, float arg1);					// 004D43E0 { return; }
-	virtual void	Unk_06(UInt32 arg0, UInt32 arg1, UInt32 arg2);		// 00D62BE0 { return; } Force/Mod AV?
+	virtual void	DamageAV(UInt32 arg0, UInt32 idx, float amount);		// 00D62BE0 { return; } Force/Mod AV?
 	virtual void	SetCurrent(UInt32 arg0, float arg1);				// 00560330
 	virtual bool	ActorValueOwner_Unk_08(void);						// 0092D110 { return false; } PlayerCarachter={ return true; }
 

@@ -19,6 +19,23 @@ public:
 	virtual const char *	GetName(void) override;					// 005134E0 { return unk14.m_data ? unk14.m_data : ""; }
 	virtual bool			SetName(const char * str) override;		// 005134F0 { unk14.Set(str, 0); return true; }
 
+	inline float GetValue()
+	{
+		return value;
+	}
+
+	inline bool SetValue(float val)
+	{
+		if ((unk1C >> 6) & 1) //constant value
+		{
+			return false;
+		}
+		else
+		{
+			value = val;
+		}
+	}
+
 	// @members
 	BSString	unk14;	// 14
 	UInt8		unk1C;	// 1C - type?
