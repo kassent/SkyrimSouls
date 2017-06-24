@@ -44,7 +44,7 @@ private:
 	DEFINE_MEMBER_FN_const(IsOwnedBy_Impl2, bool, 0x00477010, TESForm *actor, bool unk1);
 };
 
-
+#include "../BSCore/BSTArray.h"
 // 14?
 class InventoryChanges
 {
@@ -93,10 +93,14 @@ public:
 	
 	InventoryEntryData * FindEntry(TESForm *item) const;
 
+	void GetEntry(TESForm * item, BSTArray<InventoryEntryData*>& collector);
+
+
 	DEFINE_MEMBER_FN(SetUniqueID,		void,	0x00482050, BaseExtraList* itemList, TESForm * oldForm, TESForm * newForm);
 	DEFINE_MEMBER_FN(Visit,				void,	0x00475D50, IItemChangesVisitor*);
 	DEFINE_MEMBER_FN(HasLeveledItem,	bool,	0x00476260, UInt32 levItemIndex);
 	DEFINE_MEMBER_FN(InitContainer,		void,	0x00483690);
+	DEFINE_MEMBER_FN(GetEntryDataByIndex, InventoryEntryData *,	0x0047D9C0, UInt32 index);
 
 	// @members
 	BSSimpleList<InventoryEntryData *>	* entryList;	// 00

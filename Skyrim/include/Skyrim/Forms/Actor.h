@@ -379,6 +379,8 @@ public:
 
 	DEFINE_MEMBER_FN(SetGhost, void, 0x006A8D00, bool arg);
 
+	//DEFINE_MEMBER_FN(InterruptCast, void, 0x006E8F60, bool arg); //6E8F60
+
 	Actor* GetDialogueTarget()
 	{
 		RefHandle handle = this->dialogueTargetRefHandle;

@@ -66,7 +66,7 @@ public:
 	void								* unk48;		// 48
 	BSSpinLock							lock;			// 4C
 
-private:
+private: 
 	DEFINE_MEMBER_FN(ctor, BSAnimationGraphManager*, 0x00BA7B60);
 	DEFINE_MEMBER_FN(ctor2, BSAnimationGraphManager*, 0x00BA7BE0, UInt32 arg1, UInt32 arg2);
 	DEFINE_MEMBER_FN(dtor, void, 0x00BA8920);
