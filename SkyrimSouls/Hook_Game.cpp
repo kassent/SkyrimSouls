@@ -44,7 +44,6 @@ public:
 	//12C2414		float,time multipler?
 	virtual EventResult ReceiveEvent(MenuOpenCloseEvent *evn, BSTEventSource<MenuOpenCloseEvent> *src) override
 	{
-		//_MESSAGE("menuName£º %s", evn->menuName.c_str());
 		auto it = settings.m_menuConfig.find(std::string(evn->menuName.c_str()));
 		if (it != settings.m_menuConfig.end())
 		{
@@ -74,6 +73,11 @@ public:
 					{
 						GFxMovieView* view = mm->GetMovieView(holder->dialogueMenu);
 						view->SetVisible(false);
+						//V1.0.2.1
+						if (mm->IsMenuOpen("Cursor Menu") && view->GetMouseCursorCount())
+						{
+							view->SetMouseCursorCount(0);
+						}
 					}
 					PlayerControls* control = PlayerControls::GetSingleton();
 					for (auto element : control->handlers)
@@ -82,8 +86,6 @@ public:
 					}
 					//*((UInt32*)control->lookHandler + 1) = true;
 				}
-				//input->DisableControl(InputMappingManager::ContextType::kContext_ItemMenu);
-				//input->EnableControl(InputMappingManager::ContextType::kContext_Gameplay);
 
 				if (evn->menuName == holder->containerMenu)
 				{
@@ -93,16 +95,12 @@ public:
 					if (ref != nullptr)
 					{
 						UInt32& lootMode = *(UInt32*)0x01B3E6FC;
-						UInt32 iActivateDist = g_gameSettingCollection->Get("iActivatePickLength")->data.u32 + 50;//iActivatePickLength
+						UInt32 iActivateDist = g_gameSettingCollection->Get("iActivatePickLength")->data.u32 + 50;
 
 						if (settings.m_fadeOutDist >= iActivateDist && ref->Is(FormType::Character) && !ref->IsDead(false) && lootMode == 2)
 						{
-#ifdef DEBUG_LOG
-							_MESSAGE("PICKPOCKETING...");
-							float distance = g_thePlayer->GetDistance(ref, true, false);
-							_MESSAGE("formType: %d    formName: %s", (UInt32)ref->formType, ref->GetFullName());
-#endif
-							auto fn = [=]()->bool {
+							auto fn = [=]()->bool 
+							{
 								UIStringHolder* holder = UIStringHolder::GetSingleton();
 								MenuManager* mm = MenuManager::GetSingleton();
 								while (mm->IsMenuOpen(holder->containerMenu) && !ref->IsDisabled() && !ref->IsDeleted())
@@ -113,9 +111,6 @@ public:
 										mm->CloseMenu(holder->containerMenu);
 										break;
 									}
-#ifdef DEBUG_LOG
-									_MESSAGE("distance: %.2f", distance);
-#endif
 									std::this_thread::sleep_for(std::chrono::milliseconds(300));
 								}
 								return true;
@@ -151,9 +146,13 @@ public:
 					if (mm->IsMenuOpen(holder->dialogueMenu))
 					{
 						GFxMovieView* view = mm->GetMovieView(holder->dialogueMenu);
-						if (!view->GetVisible())
+						if (view->IsMovieFocused())
 						{
 							view->SetVisible(true);
+							if (mm->IsMenuOpen("Cursor Menu") && !view->GetMouseCursorCount())
+							{
+								view->SetMouseCursorCount(1);
+							}  
 						}
 					}
 				}
@@ -182,18 +181,14 @@ public:
 SInt32		MenuOpenCloseEventHandler::unpausedCount = 0;
 
 
-void* STDFN Hook_GetFavoritesItem(void* form)
+TESForm* __stdcall Hook_GetFavoritesItem(TESForm* form)
 {
-	MenuManager* manager = MenuManager::GetSingleton();
+	MenuManager* mm = MenuManager::GetSingleton();
 	UIStringHolder* holder = UIStringHolder::GetSingleton();
-	if (holder && manager && manager->IsMenuOpen(holder->favoritesMenu))
-	{
-		form = nullptr;
-	}
-	return form;
+	return (holder && mm && mm->IsMenuOpen(holder->favoritesMenu)) ? nullptr : form;
 }
 
-void STDFN Hook_KillActor(Actor* actor)
+void __stdcall Hook_KillActor(Actor* actor)
 {
 	PlayerCharacter* player = DYNAMIC_CAST<PlayerCharacter*>(actor);
 	if (player != nullptr)
@@ -209,61 +204,32 @@ void STDFN Hook_KillActor(Actor* actor)
 				isProcessing = true;
 			}
 		}
-		if (isProcessing) Sleep(200);
+		if (isProcessing)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(150));
+		}
 	}
-	//MenuControls* menuControls = MenuControls::GetSingleton();
-	//menuControls->CloseAllMenus();
 }
 
-bool STDFN Hook_IsInMenuMode()
+bool __stdcall Hook_IsInMenuMode()
 {
 	MenuManager* mm = MenuManager::GetSingleton();
 	for (auto pair : settings.m_menuConfig)
 	{
 		BSFixedString menu(pair.first.c_str());
 		if (mm->IsMenuOpen(menu))
-			return true;
-	}
-	if (*(UInt8*)0x1B2E85F || *(UInt8*)0x1B2E85E)
-		return true;
-	return false;
-}
-
-bool STDFN Hook_AddUIMessage(const BSFixedString& strData, UInt32 msgID)
-{
-	UIStringHolder* holder = UIStringHolder::GetSingleton();
-	if (msgID == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0 && (strData == holder->sleepWaitMenu || strData == holder->favoritesMenu|| strData == "Loot Menu"))
-	{
-		return false;
-	}
-	return true;
-}
-
-
-class PlayerEquipemntUpdater : public TaskDelegate
-{
-public:
-	TES_FORMHEAP_REDEFINE_NEW();
-
-	void Run() override
-	{
-		g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
-	}
-	void Dispose() override
-	{
-		delete this;
-	}
-	static void Register()
-	{
-		const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
-		const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
-		if (task)
 		{
-			PlayerEquipemntUpdater *delg = new PlayerEquipemntUpdater();
-			task->AddTask(delg);
+			return true;
 		}
 	}
-};
+	return ((*(UInt8*)0x1B2E85F || *(UInt8*)0x1B2E85E)) ? true : false;
+}
+
+bool __stdcall Hook_AddUIMessage(const BSFixedString& strData, UInt32 msgID)
+{
+	UIStringHolder* holder = UIStringHolder::GetSingleton();
+	return (msgID == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0 && strData == "Loot Menu") ? false : true;
+}
 
 
 
@@ -320,8 +286,9 @@ public:
 						EquipManager::GetSingleton()->EquipItem(g_thePlayer, objDesc, slot, true);
 						if (g_thePlayer->processManager != nullptr)
 						{
-							PlayerEquipemntUpdater::Register();
-							//g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+							auto fn = []() { g_thePlayer->processManager->UpdateEquipment(g_thePlayer); };
+							CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
+
 							if (form->formType == FormType::Armor)
 							{
 								void* unk1 = g_thePlayer->sub_4D6630();
@@ -700,20 +667,20 @@ public:
 	static void __stdcall Hook_SetLockInfo()
 	{
 		UIStringHolder* holder = UIStringHolder::GetSingleton();
-		MenuManager* manager = MenuManager::GetSingleton();
-		if (holder && manager && manager->IsMenuOpen(holder->lockpickingMenu))
+		MenuManager* mm = MenuManager::GetSingleton();
+		if (holder && mm && mm->IsMenuOpen(holder->lockpickingMenu))
 		{
-			IMenu* lockpickingMenu = manager->GetMenu(holder->lockpickingMenu);
+			IMenu* lockpickingMenu = mm->GetMenu(holder->lockpickingMenu);
 			if (settings.m_menuConfig[holder->lockpickingMenu.c_str()] && (lockpickingMenu->flags & IMenu::kType_PauseGame))
 			{
-				manager->numPauseGame -= 1;
+				mm->numPauseGame -= 1;
 				lockpickingMenu->flags &= ~IMenu::kType_PauseGame;
-				if (!manager->numPauseGame)
+				if (!mm->numPauseGame)
 				{
 					static MenuModeChangeEvent event;
 					event.unk0 = 0;
 					event.menuMode = 0;
-					manager->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
+					mm->BSTEventSource<MenuModeChangeEvent>::SendEvent(&event);
 
 					typedef void(__fastcall * Fn)(void*, void*);
 					Fn ReleaseObject = (Fn)0xA511B0;
@@ -752,17 +719,21 @@ public:
 
 	UInt32 ProcessMessage_Hook(UIMessage* msg)
 	{
+		UInt32 result = (this->*fnProcessMessage)(msg);
 		if (msg->type == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0)
 		{
-			this->menuDepth = 0;
-			//GFxMovieView* view = this->GetMovieView();
+			GFxMovieView* view = this->GetMovieView();
+			if (view != nullptr && view->GetMouseCursorCount())
+			{
+				view->SetMouseCursorCount(0);
+			}
 		}
-		return (this->*fnProcessMessage)(msg);
+		return result;
 	}
 
 	static void InitHook()
 	{
-		//fnProcessMessage = SafeWrite32(0x010E4C9C + 0x04 * 4, &ProcessMessage_Hook);
+		fnProcessMessage = SafeWrite32(0x010E4C9C + 0x04 * 4, &ProcessMessage_Hook);
 		//Dialogue menu depth
 		SafeWrite8(0x0085A231, 0x0);
 	}
@@ -1658,14 +1629,15 @@ void UICallBack_DropItem(FxDelegateArgs* pargs)
 
 					inventory->inventoryData->Update(g_thePlayer);
 
-					//PlayerCamera* camera = PlayerCamera::GetSingleton();
-					if (inventory->flags & IMenu::kType_PauseGame/* || camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free]*/)
+					PlayerCamera* camera = PlayerCamera::GetSingleton();
+					if (inventory->flags & IMenu::kType_PauseGame)
 					{
 						g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
 					}
-					else if (PlayerCamera::GetSingleton()->cameraState == PlayerCamera::GetSingleton()->cameraStates[PlayerCamera::kCameraState_Free])
+					else if (camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free])
 					{
-						PlayerEquipemntUpdater::Register();
+						auto fn = []() { g_thePlayer->processManager->UpdateEquipment(g_thePlayer); };
+						CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
 					}
 				}
 			}
@@ -1717,13 +1689,15 @@ void UICallBack_SelectItem(FxDelegateArgs* pargs)
 		EquipItem(inventory, nullptr, nullptr);
 	}
 
-	if (inventory->flags & IMenu::kType_PauseGame/* || camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free]*/)
+	PlayerCamera* camera = PlayerCamera::GetSingleton();
+	if (inventory->flags & IMenu::kType_PauseGame)
 	{
 		g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
 	}
-	else if (PlayerCamera::GetSingleton()->cameraState == PlayerCamera::GetSingleton()->cameraStates[PlayerCamera::kCameraState_Free])
+	else if(camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free])
 	{
-		PlayerEquipemntUpdater::Register();
+		auto fn = []() { g_thePlayer->processManager->UpdateEquipment(g_thePlayer); };
+		CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
 	}
 
 	class PlayerInfoUpdater : public UIDelegate
@@ -2077,3 +2051,10 @@ void Hook_Game_Commit()
 		END_ASM(Hook_VMUpdateTime)
 	}
 }
+
+
+/*
+13105D8 DialogueManager
+
+85ABC0 
+*/
