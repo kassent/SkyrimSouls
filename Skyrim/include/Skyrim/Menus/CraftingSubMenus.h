@@ -170,7 +170,8 @@ namespace CraftingSubMenus
 	{
 	public:
 
-
+		//void __cdecl sub_857250(int a1);
+		DEFINE_MEMBER_FN(CraftItem, void, 0x00857250, UInt32 index);
 		// ...
 	};
 

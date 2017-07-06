@@ -78,6 +78,10 @@ public:
 						{
 							view->SetMouseCursorCount(0);
 						}
+						if (view->GetControllerCount())
+						{
+							view->SetControllerCount(0);
+						}
 					}
 					PlayerControls* control = PlayerControls::GetSingleton();
 					for (auto element : control->handlers)
@@ -152,7 +156,8 @@ public:
 							if (mm->IsMenuOpen("Cursor Menu") && !view->GetMouseCursorCount())
 							{
 								view->SetMouseCursorCount(1);
-							}  
+							}
+							view->SetControllerCount(1);
 						}
 					}
 				}
@@ -228,7 +233,7 @@ bool __stdcall Hook_IsInMenuMode()
 bool __stdcall Hook_AddUIMessage(const BSFixedString& strData, UInt32 msgID)
 {
 	UIStringHolder* holder = UIStringHolder::GetSingleton();
-	return (msgID == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0 && strData == "Loot Menu") ? false : true;
+	return (msgID == UIMessage::kMessage_Open && MenuOpenCloseEventHandler::unpausedCount != 0 && (strData == holder->sleepWaitMenu || strData == holder->favoritesMenu || strData == "Loot Menu")) ? false : true;
 }
 
 
@@ -263,10 +268,10 @@ public:
 
 		if (result.GetType() == GFxValue::ValueType::VT_Number && result.GetNumber() != -1.00f)
 		{
-			if (this->unk40 && unk38 != nullptr)
+			if (this->unk40 && itemDatas != nullptr)
 			{
 				UInt32 index = static_cast<UInt32>(result.GetNumber());
-				TESForm* form = unk38[index].form;
+				TESForm* form = itemDatas[index].form;
 				if (form != nullptr)
 				{
 					if (form->formType == FormType::Spell)
@@ -282,23 +287,27 @@ public:
 					}
 					else
 					{
-						InventoryEntryData* objDesc = unk38[index].objDesc;
+						InventoryEntryData* objDesc = itemDatas[index].objDesc;
 						EquipManager::GetSingleton()->EquipItem(g_thePlayer, objDesc, slot, true);
 						if (g_thePlayer->processManager != nullptr)
 						{
-							auto fn = []() { g_thePlayer->processManager->UpdateEquipment(g_thePlayer); };
-							CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
-
-							if (form->formType == FormType::Armor)
+							auto fn = [form]() 
 							{
-								void* unk1 = g_thePlayer->sub_4D6630();
-								void* unk2 = ((void* (__cdecl*)(TESForm*))0x447CA0)(form);
-								bool(__fastcall* sub_447C20)(void*, void*, void*) = (bool(__fastcall*)(void*, void*, void*))0x00447C20;
-								if (sub_447C20(unk2, nullptr, unk1))
+								g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+
+								if (form->formType == FormType::Armor)
 								{
-									g_thePlayer->sub_73D9A0();
+									UInt32 slots = g_thePlayer->GetArmorSlots();//injuredHealthPct
+									TESObjectARMO* armor = ((TESObjectARMO* (__cdecl*)(TESForm*))0x447CA0)(form);
+									//_MESSAGE("%s", GetObjectClassName(armor));
+									bool(__fastcall* IsSlotsSuitable)(TESObjectARMO*, void*, UInt32) = (bool(__fastcall*)(TESObjectARMO*, void*, UInt32))0x00447C20;
+									if (IsSlotsSuitable(armor, nullptr, slots))
+									{
+										g_thePlayer->UpdateSlots();
+									}
 								}
-							}
+							};
+							CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
 						}
 					}
 					((void(__cdecl*)(char*))0x00899620)("UIFavorite");
@@ -323,7 +332,7 @@ public:
 	UInt32						unk2C;
 	UInt32						unk30;
 	UInt32						unk34;
-	ItemData*					unk38;
+	ItemData*					itemDatas;
 	UInt32						unk3C;
 	UInt32						unk40;
 	bool						unk44;
@@ -844,10 +853,157 @@ public:
 		return result;
 	}
 
+	static void UICallBack_DropItem(FxDelegateArgs* pargs)
+	{
+		InventoryMenu* inventory = reinterpret_cast<InventoryMenu*>(pargs->pThisMenu);
+		if (inventory != nullptr && inventory->inventoryData)
+		{
+			StandardItemData* itemData = inventory->inventoryData->GetSelectedItemData();
+			InventoryEntryData* objDesc = nullptr;
+			if (itemData)
+				objDesc = itemData->objDesc;
+			if (objDesc != nullptr)
+			{
+				void(__cdecl* sub_8997A0)(void*, char*, bool) = (void(__cdecl*)(void*, char*, bool))0x8997A0;
+				if (objDesc->IsQuestItem())
+				{
+					sub_8997A0(*(void**)0x1B1950C, nullptr, true);  //cdecl
+				}
+				else
+				{
+					TESForm* form = objDesc->baseForm;
+					if (form->formType == FormType::Key)
+					{
+						sub_8997A0(*(void**)0x1B1953C, nullptr, true);  //cdecl
+					}
+					else
+					{
+						GFxValue* args = pargs->args;
+						UInt32 count = static_cast<UInt32>(args->GetNumber());
+						BaseExtraList* (__cdecl* GetBaseExtraList)(InventoryEntryData*, UInt32, bool) = (BaseExtraList* (__cdecl*)(InventoryEntryData*, UInt32, bool))0x00868950;
+						BaseExtraList* extraList = GetBaseExtraList(objDesc, count, false);
+						RefHandle handle;
+						g_thePlayer->DropItem(&handle, form, extraList, count, 0, 0);
+
+						UInt32(__fastcall * sub_755420)(void*, void*) = (UInt32(__fastcall *)(void*, void*))0x00755420;
+						sub_755420(*(void**)0x12E32E8, nullptr);
+
+						inventory->inventoryData->Update(g_thePlayer);
+
+						PlayerCamera* camera = PlayerCamera::GetSingleton();
+						if (inventory->flags & IMenu::kType_PauseGame)
+						{
+							g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+						}
+						else if (camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free])
+						{
+							auto fn = []() { g_thePlayer->processManager->UpdateEquipment(g_thePlayer); };
+							CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+
+	static void UICallBack_CloseTweenMenu(FxDelegateArgs* pargs)
+	{
+		PlayerCamera* camera = PlayerCamera::GetSingleton();//kCameraState_Free
+		camera->ResetCamera();
+
+		MenuManager* mm = MenuManager::GetSingleton();
+		UIStringHolder* holder = UIStringHolder::GetSingleton();
+		mm->CloseMenu(holder->tweenMenu);
+
+		IMenu* inventoryMenu = reinterpret_cast<IMenu*>(pargs->pThisMenu);
+		*((bool*)inventoryMenu + 0x51) = 1;
+	}
+
+
+
+	static void UICallBack_SelectItem(FxDelegateArgs* pargs)
+	{
+		InventoryMenu* inventory = reinterpret_cast<InventoryMenu*>(pargs->pThisMenu);
+		GFxValue* args = pargs->args;
+
+		TESForm* form = nullptr;
+		BaseExtraList* extraList = nullptr;
+
+		void(__fastcall* EquipItem)(InventoryMenu*, void*, BGSEquipSlot*) = (void(__fastcall*)(InventoryMenu*, void*, BGSEquipSlot*))0x00869DB0;
+		if (inventory != nullptr && inventory->bPCControlsReady && pargs->numArgs && args->Type == GFxValue::ValueType::VT_Number)
+		{
+			if (args->GetNumber() == 0.0f)
+			{
+				BGSEquipSlot* rightHandSlot = GetRightHandSlot();
+				EquipItem(inventory, nullptr, rightHandSlot);
+			}
+			else if (args->GetNumber() == 1.0f)
+			{
+				BGSEquipSlot* leftHandSlot = GetLeftHandSlot();
+				EquipItem(inventory, nullptr, leftHandSlot);
+			}
+		}
+		else
+		{
+			EquipItem(inventory, nullptr, nullptr);
+		}
+
+		PlayerCamera* camera = PlayerCamera::GetSingleton();
+		if (inventory->flags & IMenu::kType_PauseGame)
+		{
+			g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
+		}
+		else if (camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free])
+		{
+			auto fn = []() { g_thePlayer->processManager->UpdateEquipment(g_thePlayer); };
+			CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
+		}
+
+		class PlayerInfoUpdater : public UIDelegate
+		{
+		public:
+			TES_FORMHEAP_REDEFINE_NEW();
+
+			void Run() override
+			{
+				UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
+				MenuManager* mm = MenuManager::GetSingleton();
+				if (mm->IsMenuOpen(stringHolder->inventoryMenu))
+				{
+					InventoryMenu* inventory = static_cast<InventoryMenu*>(mm->GetMenu(stringHolder->inventoryMenu));
+					inventory->UpdatePlayerInfo();
+				}
+			}
+			void Dispose() override
+			{
+				delete this;
+			}
+			static void Register()
+			{
+				const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
+				const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
+				if (task)
+				{
+					PlayerInfoUpdater *delg = new PlayerInfoUpdater();
+					task->AddUITask(delg);
+				}
+			}
+		};
+		auto fn = [=](UInt32 time)->bool {std::this_thread::sleep_for(std::chrono::milliseconds(time)); PlayerInfoUpdater::Register(); return true; };
+		really_async(fn, 100);
+	}
+
+
 	static void InitHook()
 	{
 		fnProcessMessage = SafeWrite32(0x010E5B90 + 0x04 * 4, &ProcessMessage_Hook);
 		WriteRelCall(0x00A5D686, &Release_Hook);
+		//Drop item in Inventory menu.
+		SafeWrite32(0x0086B437, (UInt32)UICallBack_DropItem);
+		//Equip item in Inventory Menu
+		SafeWrite32(0x0086B3F4, (UInt32)UICallBack_SelectItem);
 	}
 };
 InventoryMenuEx::FnProcessMessage	InventoryMenuEx::fnProcessMessage = nullptr;
@@ -1592,149 +1748,6 @@ GFxMovieEx::RemapHandler*	 GFxMovieEx::pRemapHandler = nullptr;
 
 
 
-void UICallBack_DropItem(FxDelegateArgs* pargs)
-{
-	InventoryMenu* inventory = reinterpret_cast<InventoryMenu*>(pargs->pThisMenu);
-	if (inventory != nullptr && inventory->inventoryData)
-	{
-		StandardItemData* itemData = inventory->inventoryData->GetSelectedItemData();
-		InventoryEntryData* objDesc = nullptr;
-		if (itemData)
-			objDesc = itemData->objDesc;
-		if (objDesc != nullptr)
-		{
-			void(__cdecl* sub_8997A0)(void*, char*, bool) = (void(__cdecl*)(void*, char*, bool))0x8997A0;
-			if (objDesc->IsQuestItem())
-			{
-				sub_8997A0(*(void**)0x1B1950C, nullptr, true);  //cdecl
-			}
-			else
-			{
-				TESForm* form = objDesc->baseForm;
-				if (form->formType == FormType::Key)
-				{
-					sub_8997A0(*(void**)0x1B1953C, nullptr, true);  //cdecl
-				}
-				else
-				{
-					GFxValue* args = pargs->args;
-					UInt32 count = static_cast<UInt32>(args->GetNumber());
-					BaseExtraList* (__cdecl* GetBaseExtraList)(InventoryEntryData*, UInt32, bool) = (BaseExtraList* (__cdecl*)(InventoryEntryData*, UInt32, bool))0x00868950;
-					BaseExtraList* extraList = GetBaseExtraList(objDesc, count, false);
-					RefHandle handle;
-					g_thePlayer->DropItem(&handle, form, extraList, count, 0, 0);
-
-					UInt32(__fastcall * sub_755420)(void*, void*) = (UInt32(__fastcall *)(void*, void*))0x00755420;
-					sub_755420(*(void**)0x12E32E8, nullptr);
-
-					inventory->inventoryData->Update(g_thePlayer);
-
-					PlayerCamera* camera = PlayerCamera::GetSingleton();
-					if (inventory->flags & IMenu::kType_PauseGame)
-					{
-						g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
-					}
-					else if (camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free])
-					{
-						auto fn = []() { g_thePlayer->processManager->UpdateEquipment(g_thePlayer); };
-						CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
-					}
-				}
-			}
-		}
-	}
-}
-
-
-
-void UICallBack_CloseTweenMenu(FxDelegateArgs* pargs)
-{
-	PlayerCamera* camera = PlayerCamera::GetSingleton();//kCameraState_Free
-	camera->ResetCamera();
-
-	MenuManager* mm = MenuManager::GetSingleton();
-	UIStringHolder* holder = UIStringHolder::GetSingleton();
-	mm->CloseMenu(holder->tweenMenu);
-
-	IMenu* inventoryMenu = reinterpret_cast<IMenu*>(pargs->pThisMenu);
-	*((bool*)inventoryMenu + 0x51) = 1;
-}
-
-
-
-void UICallBack_SelectItem(FxDelegateArgs* pargs)
-{
-	InventoryMenu* inventory = reinterpret_cast<InventoryMenu*>(pargs->pThisMenu);
-	GFxValue* args = pargs->args;
-
-	TESForm* form = nullptr;
-	BaseExtraList* extraList = nullptr;
-
-	void(__fastcall* EquipItem)(InventoryMenu*, void*, BGSEquipSlot*) = (void(__fastcall*)(InventoryMenu*, void*, BGSEquipSlot*))0x00869DB0;
-	if (inventory != nullptr && inventory->bPCControlsReady && pargs->numArgs && args->Type == GFxValue::ValueType::VT_Number)
-	{
-		if (args->GetNumber() == 0.0f)
-		{
-			BGSEquipSlot* rightHandSlot = GetRightHandSlot();
-			EquipItem(inventory, nullptr, rightHandSlot);
-		}
-		else if (args->GetNumber() == 1.0f)
-		{
-			BGSEquipSlot* leftHandSlot = GetLeftHandSlot();
-			EquipItem(inventory, nullptr, leftHandSlot);
-		}
-	}
-	else
-	{
-		EquipItem(inventory, nullptr, nullptr);
-	}
-
-	PlayerCamera* camera = PlayerCamera::GetSingleton();
-	if (inventory->flags & IMenu::kType_PauseGame)
-	{
-		g_thePlayer->processManager->UpdateEquipment(g_thePlayer);
-	}
-	else if(camera->cameraState == camera->cameraStates[PlayerCamera::kCameraState_Free])
-	{
-		auto fn = []() { g_thePlayer->processManager->UpdateEquipment(g_thePlayer); };
-		CallbackDelegate::Register<CallbackDelegate::kType_Normal>(fn);
-	}
-
-	class PlayerInfoUpdater : public UIDelegate
-	{
-	public:
-		TES_FORMHEAP_REDEFINE_NEW();
-
-		void Run() override
-		{
-			UIStringHolder* stringHolder = UIStringHolder::GetSingleton();
-			MenuManager* mm = MenuManager::GetSingleton();
-			if (mm->IsMenuOpen(stringHolder->inventoryMenu))
-			{
-				InventoryMenu* inventory = static_cast<InventoryMenu*>(mm->GetMenu(stringHolder->inventoryMenu));
-				inventory->UpdatePlayerInfo();
-			}
-		}
-		void Dispose() override
-		{
-			delete this;
-		}
-		static void Register()
-		{
-			const SKSEPlugin *plugin = SKSEPlugin::GetSingleton();
-			const SKSETaskInterface *task = plugin->GetInterface(SKSETaskInterface::Version_2);
-			if (task)
-			{
-				PlayerInfoUpdater *delg = new PlayerInfoUpdater();
-				task->AddUITask(delg);
-			}
-		}
-	};
-	auto fn = [=](UInt32 time)->bool {std::this_thread::sleep_for(std::chrono::milliseconds(time)); PlayerInfoUpdater::Register(); return true; };
-	really_async(fn, 100);
-}
-
-
 
 void UICallBack_SetSaveDisabled(FxDelegateArgs* pargs)
 {
@@ -1942,10 +1955,6 @@ void Hook_Game_Commit()
 	SafeWrite16(0x0084AC57, 0x9090);
 	SafeWrite32(0x0084AC59, 0x90909090);
 
-	//Drop item in Inventory menu.
-	SafeWrite32(0x0086B437, (UInt32)UICallBack_DropItem);
-	//Equip item in Inventory Menu
-	SafeWrite32(0x0086B3F4, (UInt32)UICallBack_SelectItem);
 	//SetSaveDisabled in Journal Menu
 	SafeWrite32(0x008A7F73, (UInt32)UICallBack_SetSaveDisabled);
 

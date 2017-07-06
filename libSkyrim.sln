@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{B97F6877-F
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkyrimSouls", "SkyrimSouls\SkyrimSouls.vcxproj", "{322E7D1F-19C9-4ECE-A6D6-262DA2EE3890}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImmersiveMerchant", "ImmersiveMerchant\ImmersiveMerchant.vcxproj", "{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -39,6 +41,14 @@ Global
 		{322E7D1F-19C9-4ECE-A6D6-262DA2EE3890}.Release|Win32.Build.0 = Release|Win32
 		{322E7D1F-19C9-4ECE-A6D6-262DA2EE3890}.Release|x64.ActiveCfg = Release|x64
 		{322E7D1F-19C9-4ECE-A6D6-262DA2EE3890}.Release|x64.Build.0 = Release|x64
+		{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}.Debug|Win32.Build.0 = Debug|Win32
+		{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}.Debug|x64.ActiveCfg = Debug|x64
+		{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}.Debug|x64.Build.0 = Debug|x64
+		{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}.Release|Win32.ActiveCfg = Release|Win32
+		{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}.Release|Win32.Build.0 = Release|Win32
+		{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}.Release|x64.ActiveCfg = Release|x64
+		{4F7A88FA-3CE9-4FC7-BADA-26DE9F4D3DC1}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

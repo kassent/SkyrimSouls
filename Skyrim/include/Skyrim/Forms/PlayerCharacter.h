@@ -231,9 +231,9 @@ public:
 
 	DEFINE_MEMBER_FN(ServeInJail, void, 0x0074B7E0);
 
-	DEFINE_MEMBER_FN(sub_4D6630, void*, 0x004D6630);
+	DEFINE_MEMBER_FN(GetArmorSlots, UInt32, 0x004D6630);
 
-	DEFINE_MEMBER_FN(sub_73D9A0, void, 0x0073D9A0);
+	DEFINE_MEMBER_FN(UpdateSlots, void, 0x0073D9A0);
 	/*
 	.text:0085B6C1                 mov     ecx, dword_1B2E8E4
 .text:0085B6C7                 call    sub_4D6630

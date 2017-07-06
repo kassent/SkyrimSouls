@@ -124,6 +124,8 @@ public:
 	void RemoveAllDefault(bool bDelete = true);						// 0040B940
 	bool RemoveExtra(UInt32 type);									// 0040BC10
 	void RemoveExtra(BSExtraData *toRemove, bool bDelete = true);	// 0040BB00
+
+
 	void RemoveAllCopyableExtra(bool bDelete = true);				// 0040BD30
 
 	inline bool HasType(ExtraDataType type) const {
@@ -298,7 +300,8 @@ private:
 	DEFINE_MEMBER_FN_const(	GetExtraTextDisplayData_Impl,	ExtraTextDisplayData*,	0x00418590);
 	DEFINE_MEMBER_FN_const(	GetReferenceFromItemDropper_Impl,	TESObjectREFR*,	0x004153C0);
 	DEFINE_MEMBER_FN_const(	IsQuestItem_Impl,				bool,			0x00418FE0);
-
-
+public:
+	DEFINE_MEMBER_FN(		SetTemperHealth,				void,			0x0040FC10, float health = -1.0f); //-1.0f clear temper data.
+	DEFINE_MEMBER_FN(		Init,							BaseExtraList*, 0x0040F490);
 };
 STATIC_ASSERT(sizeof(BaseExtraList) == 0x08);
