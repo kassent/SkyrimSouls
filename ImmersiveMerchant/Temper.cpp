@@ -71,3 +71,7 @@ bool TemperInventoryItem(TESForm* form)
 }
 
 
+namespace InventoryUtil
+{
+
+}

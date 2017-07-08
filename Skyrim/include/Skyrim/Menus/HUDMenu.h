@@ -19,6 +19,7 @@ public:
 	enum MessageType
 	{
 		kType_ShowMessage				= 1,
+		kType_SetCrosshairTarget		= 2,
 		kType_SetLoadDoorInfo			= 4,
 		kType_ShowSubtitle				= 5,
 		kType_HideSubtitle				= 6,
@@ -300,7 +301,7 @@ public:
 		fn(type, arg2, text, arg4);
 	}
 
-	static void SendHUDMessage(HUDData::MessageType type, const char *text)
+	static void SendHUDMessage(HUDData::MessageType type, const char *text) //incorrect
 	{
 		typedef void(*Fn)(HUDData::MessageType, const char *);
 		const Fn fn = (Fn)0x00897480;
